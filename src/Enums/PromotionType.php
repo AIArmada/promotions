@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AIArmada\Promotions\Enums;
 
+use AIArmada\CommerceSupport\Support\MoneyFormatter;
+
 /**
  * Promotion discount type.
  */
@@ -44,7 +46,7 @@ enum PromotionType: string
     {
         return match ($this) {
             self::Percentage => "{$value}%",
-            self::Fixed => '$' . number_format($value / 100, 2),
+            self::Fixed => MoneyFormatter::formatMinor($value, (string) config('promotions.defaults.currency', 'USD')),
             self::BuyXGetY => "Buy X Get {$value}",
         };
     }

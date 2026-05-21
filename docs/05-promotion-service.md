@@ -4,183 +4,44 @@ title: Promotion Service
 
 # Promotion Service
 
-The `PromotionService` provides business logic for finding and applying promotions based on context.
+`PromotionService` finds and evaluates automatic promotions against a `TargetingContext`.
 
-## Overview
-
-The service integrates with the targeting engine from commerce-support to evaluate promotion conditions against a given context.
-
-## Interface
+## Interface summary
 
 ```php
-namespace AIArmada\Promotions\Contracts;
-
-interface PromotionServiceInterface
-{
-    /**
-     * Get all applicable promotions for the given context.
-     *
-     * @param array<string, mixed> $context
-     * @return Collection<int, Promotion>
-     */
-    public function getApplicablePromotions(array $context): Collection;
-
-    /**
-     * Get the best single promotion for the amount.
-     *
-     * @param array<string, mixed> $context
-     * @param int $amount Amount in cents
-     * @return Promotion|null
-     */
-    public function getBestPromotion(array $context, int $amount): ?Promotion;
-
-    /**
-     * Get stackable promotions sorted by best discount.
-     *
-     * @param array<string, mixed> $context
-     * @param int $amount Amount in cents
-     * @return Collection<int, Promotion>
-     */
-    public function getStackablePromotions(array $context, int $amount): Collection;
-
-    /**
-     * Calculate discounts for all applicable promotions.
-     *
-     * @param array<string, mixed> $context
-     * @param int $amount Amount in cents
-     * @return array<string, int> Promotion ID => discount amount
-     */
-    public function calculateDiscounts(array $context, int $amount): array;
-}
+public function getApplicablePromotions(TargetingContext $context): Collection;
+public function getBestPromotion(TargetingContext $context): ?Promotion;
+public function getStackablePromotions(TargetingContext $context): Collection;
+public function calculateDiscounts(TargetingContext $context, int $subtotalInCents): array;
 ```
 
-## Context Array
-
-The context array provides data for targeting conditions:
+## Basic usage
 
 ```php
-$context = [
-    // Customer info
-    'customer_id' => '550e8400-e29b-41d4-a716-446655440000',
-    'customer_group' => 'vip',
-    'is_first_order' => true,
-
-    // Cart info
-    'cart_total' => 15000, // cents
-    'item_count' => 3,
-    'product_ids' => ['prod-1', 'prod-2'],
-    'category_ids' => ['cat-electronics'],
-
-    // Location
-    'shipping_country' => 'US',
-    'shipping_state' => 'CA',
-
-    // Custom attributes
-    'has_subscription' => true,
-];
-```
-
-## Usage Examples
-
-### Finding Applicable Promotions
-
-```php
+use AIArmada\CommerceSupport\Targeting\TargetingContext;
 use AIArmada\Promotions\Services\PromotionService;
 
 $service = app(PromotionService::class);
+$context = TargetingContext::fromCart($cart, [
+    'channel' => 'web',
+]);
 
-$context = [
-    'cart_total' => 15000,
-    'customer_id' => $customer->id,
-];
-
-// Get all promotions that match the context
-$promotions = $service->getApplicablePromotions($context);
-
-foreach ($promotions as $promotion) {
-    echo $promotion->name . ': ' . $promotion->calculateDiscount(15000);
-}
+$applicable = $service->getApplicablePromotions($context);
+$best = $service->getBestPromotion($context);
+$stackable = $service->getStackablePromotions($context);
 ```
 
-### Getting the Best Promotion
-
-When only one promotion can apply:
+## Calculate discount result
 
 ```php
-$best = $service->getBestPromotion($context, 15000);
+$result = $service->calculateDiscounts($context, $subtotalInCents);
 
-if ($best) {
-    $discount = $best->calculateDiscount(15000);
-    echo "Best deal: {$best->name} saves {$discount} cents";
-}
+$discount = $result['discount'];
+$applied = $result['applied']; // Collection<Promotion>
 ```
 
-### Stacking Promotions
+## Notes
 
-When multiple promotions can combine:
-
-```php
-$stackable = $service->getStackablePromotions($context, 15000);
-
-$totalDiscount = 0;
-foreach ($stackable as $promo) {
-    $discount = $promo->calculateDiscount(15000 - $totalDiscount);
-    $totalDiscount += $discount;
-}
-
-echo "Total savings: {$totalDiscount} cents";
-```
-
-### Calculating All Discounts
-
-Get a breakdown of all applicable discounts:
-
-```php
-$discounts = $service->calculateDiscounts($context, 15000);
-
-// Returns: ['promo-id-1' => 2000, 'promo-id-2' => 1000]
-foreach ($discounts as $promoId => $discount) {
-    $promo = Promotion::find($promoId);
-    echo "{$promo->name}: {$discount} cents\n";
-}
-```
-
-## Dependency Injection
-
-Bind a custom implementation:
-
-```php
-// In a service provider
-$this->app->bind(
-    PromotionServiceInterface::class,
-    CustomPromotionService::class
-);
-```
-
-## Extending the Service
-
-Create a custom service for specialized logic:
-
-```php
-namespace App\Services;
-
-use AIArmada\Promotions\Services\PromotionService;
-
-class CustomPromotionService extends PromotionService
-{
-    public function getApplicablePromotions(array $context): Collection
-    {
-        // Add custom pre-filtering
-        $promotions = parent::getApplicablePromotions($context);
-
-        // Add custom post-filtering
-        return $promotions->filter(fn ($p) => $this->customCheck($p, $context));
-    }
-
-    private function customCheck(Promotion $promo, array $context): bool
-    {
-        // Your custom logic
-        return true;
-    }
-}
-```
+- The service reads `Promotion::active()->automatic()->forOwner()`.
+- Promotion `conditions` are evaluated by the commerce-support targeting engine.
+- If a conditions payload is invalid, it is rejected at write-time before service evaluation.

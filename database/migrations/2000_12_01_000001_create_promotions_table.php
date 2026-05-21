@@ -10,7 +10,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $jsonColumnType = (string) config('promotions.database.json_column_type', 'json');
+        $jsonColumnType = (string) config('promotions.database.json_column_type', commerce_json_column_type('promotions', 'json'));
 
         Schema::create((string) config('promotions.database.tables.promotions', 'promotions'), function (Blueprint $table) use ($jsonColumnType): void {
             $table->uuid('id')->primary();

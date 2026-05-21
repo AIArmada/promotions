@@ -9,12 +9,20 @@ return [
     |--------------------------------------------------------------------------
     */
     'database' => [
-        'table_prefix' => '',
         'tables' => [
             'promotions' => 'promotions',
             'promotionables' => 'promotionables',
         ],
-        'json_column_type' => 'json',
+        'json_column_type' => env('PROMOTIONS_JSON_COLUMN_TYPE', env('COMMERCE_JSON_COLUMN_TYPE', 'json')),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Defaults
+    |--------------------------------------------------------------------------
+    */
+    'defaults' => [
+        'currency' => 'USD',
     ],
 
     /*
@@ -24,17 +32,10 @@ return [
     */
     'features' => [
         'owner' => [
-            'enabled' => false,
-            'include_global' => true,
+            'enabled' => true,
+            'include_global' => false,
+            'auto_assign_on_create' => true,
         ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Targeting
-    |--------------------------------------------------------------------------
-    */
-    'targeting' => [
-        'cache_ttl' => 3600,
-    ],
 ];

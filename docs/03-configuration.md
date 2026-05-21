@@ -4,22 +4,14 @@ title: Configuration
 
 # Configuration
 
-The promotions configuration file controls database settings, feature flags, and targeting behavior.
+The promotions package exposes database and owner-scoping settings.
 
-## Full Configuration
+## Full configuration
 
 ```php
 // config/promotions.php
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Database
-    |--------------------------------------------------------------------------
-    */
-
     'database' => [
-        'table_prefix' => '',
         'tables' => [
             'promotions' => 'promotions',
             'promotionables' => 'promotionables',
@@ -27,121 +19,35 @@ return [
         'json_column_type' => 'json',
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Features
-    |--------------------------------------------------------------------------
-    */
-
     'features' => [
         'owner' => [
-            'enabled' => false,
-            'include_global' => true,
+            'enabled' => true,
+            'include_global' => false,
+            'auto_assign_on_create' => true,
         ],
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Targeting
-    |--------------------------------------------------------------------------
-    */
-
-    'targeting' => [
-        'cache_ttl' => 3600,
-    ],
-
 ];
 ```
 
-## Database Configuration
+## Owner defaults
 
-### Table Prefix
+- `enabled = true` keeps promotion reads/writes owner-aware by default.
+- `include_global = false` is fail-closed; owner-scoped queries do not include global rows unless explicitly requested.
+- `auto_assign_on_create = true` assigns owner automatically when an owner context exists.
 
-Add a prefix to all promotions tables:
+## Database settings
 
-```php
-'table_prefix' => 'promo_',
-// Results in: promo_promotions, promo_promotionables
-```
+- `database.tables.*` overrides table names.
+- `database.json_column_type` can be switched to `text` for engines without native JSON support.
 
-### Custom Table Names
+## Environment overrides
 
-Override individual table names:
+If needed, override in your app-level published config. The package itself does not ship a `promotions.targeting.*` config section.
 
-```php
-'tables' => [
-    'promotions' => 'my_promotions',
-    'promotionables' => 'my_promotionables',
-],
-```
-
-### JSON Column Type
-
-Configure the JSON column type for your database:
+## Accessing config in code
 
 ```php
-'json_column_type' => 'json',     // MySQL 5.7+, PostgreSQL
-'json_column_type' => 'jsonb',    // PostgreSQL (indexed)
-'json_column_type' => 'text',     // SQLite (fallback)
-```
-
-## Feature Configuration
-
-### Owner Scoping (Multi-tenancy)
-
-Enable owner scoping for multi-tenant applications:
-
-```php
-'features' => [
-    'owner' => [
-        'enabled' => true,        // Enable owner scoping
-        'include_global' => true, // Include promotions with owner=null
-    ],
-],
-```
-
-When enabled:
-- Promotions are automatically scoped to the current owner
-- Use `Promotion::forOwner($owner)` for explicit scoping
-- Global promotions (owner=null) can be included or excluded
-
-## Targeting Configuration
-
-### Cache TTL
-
-Control how long targeting conditions are cached:
-
-```php
-'targeting' => [
-    'cache_ttl' => 3600, // 1 hour in seconds
-],
-```
-
-Set to `0` to disable caching.
-
-## Environment Variables
-
-For sensitive or deploy-time values, use environment variables:
-
-```php
-'features' => [
-    'owner' => [
-        'enabled' => env('PROMOTIONS_OWNER_ENABLED', false),
-    ],
-],
-```
-
-## Configuration Access
-
-Access configuration values in code:
-
-```php
-// Get table name
 $table = config('promotions.database.tables.promotions');
-
-// Check if owner scoping is enabled
 $ownerEnabled = config('promotions.features.owner.enabled');
-
-// Get targeting cache TTL
-$ttl = config('promotions.targeting.cache_ttl');
+$includeGlobal = config('promotions.features.owner.include_global');
 ```

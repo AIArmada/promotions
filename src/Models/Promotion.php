@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace AIArmada\Promotions\Models;
 
+use AIArmada\CommerceSupport\Concerns\LogsCommerceActivity;
 use AIArmada\CommerceSupport\Support\OwnerContext;
+use AIArmada\CommerceSupport\Targeting\Contracts\TargetingEngineInterface;
 use AIArmada\CommerceSupport\Traits\HasOwner;
 use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
 use AIArmada\Promotions\Enums\PromotionType;
@@ -16,9 +18,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use RuntimeException;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Represents an automatic promotional discount campaign.
@@ -52,7 +54,7 @@ class Promotion extends Model
     }
     use HasOwnerScopeConfig;
     use HasUuids;
-    use LogsActivity;
+    use LogsCommerceActivity;
 
     protected static string $ownerScopeConfigKey = 'promotions.features.owner';
 
@@ -309,9 +311,46 @@ class Promotion extends Model
 
     protected static function booted(): void
     {
-        static::saving(function (Promotion $promotion): void {
+        static::updating(function (Promotion $promotion): void {
             if (! PromotionsOwnerScope::isEnabled()) {
                 return;
+            }
+
+            $owner = PromotionsOwnerScope::resolveOwner();
+
+            if ($owner !== null && ! $promotion->belongsToOwner($owner)) {
+                throw new AuthorizationException('Cannot update promotions outside the current owner scope.');
+            }
+        });
+
+        static::saving(function (Promotion $promotion): void {
+            if ($promotion->conditions !== null) {
+                if (! is_array($promotion->conditions)) {
+                    throw new InvalidArgumentException('Promotion conditions must be an array or null.');
+                }
+
+                if ($promotion->conditions === []) {
+                    $promotion->conditions = null;
+                } else {
+                    /** @var TargetingEngineInterface $targetingEngine */
+                    $targetingEngine = app(TargetingEngineInterface::class);
+                    $errors = $targetingEngine->validate($promotion->conditions);
+
+                    if ($errors !== []) {
+                        throw new InvalidArgumentException('Invalid promotion conditions: ' . implode(' | ', $errors));
+                    }
+                }
+            }
+
+            if (! PromotionsOwnerScope::isEnabled()) {
+                return;
+            }
+
+            $hasOwnerType = $promotion->owner_type !== null;
+            $hasOwnerId = $promotion->owner_id !== null;
+
+            if ($hasOwnerType !== $hasOwnerId) {
+                throw new InvalidArgumentException('Invalid owner columns: owner_type and owner_id must be both set or both null.');
             }
 
             $owner = PromotionsOwnerScope::resolveOwner();
@@ -324,11 +363,19 @@ class Promotion extends Model
                 return;
             }
 
-            if ($promotion->owner_type === null && $promotion->owner_id === null) {
+            if (
+                ! $promotion->exists
+                && $promotion->owner_type === null
+                && $promotion->owner_id === null
+                && (bool) config('promotions.features.owner.auto_assign_on_create', true)
+            ) {
                 $promotion->assignOwner($owner);
             }
 
-            if (! $promotion->belongsToOwner($owner)) {
+            if (
+                ($promotion->owner_type !== null || $promotion->owner_id !== null)
+                && ! $promotion->belongsToOwner($owner)
+            ) {
                 throw new AuthorizationException('Cannot write promotions outside the current owner scope.');
             }
         });

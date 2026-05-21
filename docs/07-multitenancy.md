@@ -4,137 +4,51 @@ title: Multi-tenancy
 
 # Multi-tenancy
 
-The promotions package supports multi-tenant applications through owner scoping.
+Promotions are owner-aware via `commerce-support`.
 
-## Enabling Owner Scoping
+## Default posture
 
 ```php
-// config/promotions.php
 'features' => [
     'owner' => [
         'enabled' => true,
-        'include_global' => true,
+        'include_global' => false,
+        'auto_assign_on_create' => true,
     ],
 ],
 ```
 
-## Owner Relationship
+## Owner columns
 
-Promotions use a polymorphic owner relationship:
+Promotions migration includes:
 
 ```php
-// Migration creates these columns:
 $table->nullableMorphs('owner');
-// Results in: owner_type, owner_id
 ```
 
-## Creating Tenant Promotions
+## Safe create/update behavior
+
+- If owner mode is enabled and an owner context exists, new promotions are auto-assigned (unless owner fields are explicitly set).
+- Cross-owner writes are blocked.
+- Owned writes without owner context are blocked.
+
+## Querying patterns
 
 ```php
-use AIArmada\Promotions\Models\Promotion;
-
-// Create promotion for specific tenant
-$promotion = Promotion::create([
-    'name' => 'Tenant Sale',
-    'type' => PromotionType::Percentage,
-    'discount_value' => 15,
-    'owner_type' => Team::class,
-    'owner_id' => $team->id,
-    'is_active' => true,
-]);
-
-// Using the owner relation
-$promotion = new Promotion([
-    'name' => 'Store Promotion',
-    'type' => PromotionType::Fixed,
-    'discount_value' => 500,
-    'is_active' => true,
-]);
-$promotion->owner()->associate($store);
-$promotion->save();
+$owned = Promotion::query()->forOwner($tenant)->get();
+$ownedAndGlobal = Promotion::query()->forOwner($tenant, includeGlobal: true)->get();
 ```
 
-## Querying by Owner
-
-### For Specific Owner
+For global-only operations, enter explicit global context:
 
 ```php
-// Get promotions for a specific owner
-$promotions = Promotion::forOwner($tenant)->get();
-```
+use AIArmada\CommerceSupport\Support\OwnerContext;
 
-### With Global Promotions
-
-When `include_global` is enabled, queries include promotions where `owner_id` is null:
-
-```php
-// Returns tenant promotions + global promotions
-$promotions = Promotion::forOwner($tenant)->get();
-```
-
-### Global Only
-
-```php
-// Get only promotions without an owner
-$global = Promotion::whereNull('owner_id')->get();
-```
-
-## Owner Scope Helper
-
-The `PromotionsOwnerScope` class provides configuration checks:
-
-```php
-use AIArmada\Promotions\Support\PromotionsOwnerScope;
-
-// Check if owner scoping is enabled
-if (PromotionsOwnerScope::isEnabled()) {
-    // Owner scoping active
-}
-
-// Check if global promotions should be included
-if (PromotionsOwnerScope::includeGlobal()) {
-    // Include owner_id = null promotions
-}
-```
-
-## Service Provider Integration
-
-If using the commerce-support `OwnerResolverInterface`:
-
-```php
-// Bind the owner resolver
-$this->app->bind(
-    OwnerResolverInterface::class,
-    fn () => new TenantOwnerResolver()
+$global = OwnerContext::withOwner(null, fn () =>
+    Promotion::query()->forOwner()->get()
 );
 ```
 
-The Promotion model's `scopeForOwner` will respect this binding automatically.
+## Filament integration
 
-## Security Considerations
-
-When owner scoping is enabled:
-
-1. **Always validate owner context** — Never trust client-provided owner IDs
-2. **Use `forOwner()` scope** — Don't rely on UI filtering alone
-3. **Validate in actions** — Re-verify owner in action handlers
-4. **Cross-tenant operations** — Explicitly opt-out with `withoutOwnerScope()`
-
-```php
-// Safe pattern in controllers/actions
-$promotion = Promotion::forOwner($currentTenant)
-    ->findOrFail($promotionId);
-
-// Unsafe - don't do this
-$promotion = Promotion::findOrFail($promotionId);
-```
-
-## Filament Integration
-
-When using filament-promotions with multi-tenancy:
-
-1. Override `getEloquentQuery()` in the resource
-2. Validate owner in form actions
-3. Use owner-scoped relationship selects
-
-See the filament-promotions documentation for detailed integration patterns.
+`filament-promotions` scopes list/query surfaces through `PromotionsOwnerScope::applyToOwnedQuery()` and re-checks destructive actions against the current owner.

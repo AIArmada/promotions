@@ -4,202 +4,49 @@ title: Targeting
 
 # Targeting
 
-Promotions integrate with the targeting engine from commerce-support to apply complex conditions.
+Promotions use the commerce-support targeting engine. The `conditions` column must follow targeting-engine format and is validated on save.
 
-## Overview
+## Supported top-level formats
 
-The `conditions` JSON column stores targeting rules that are evaluated against a context array. This allows promotions to target specific customers, products, order values, and more.
-
-## Condition Structure
-
-Conditions follow the targeting engine format:
-
-```php
-$promotion = Promotion::create([
-    'name' => 'VIP Customer Discount',
-    'type' => PromotionType::Percentage,
-    'discount_value' => 25,
-    'conditions' => [
-        'rules' => [
-            [
-                'field' => 'customer_group',
-                'operator' => 'equals',
-                'value' => 'vip',
-            ],
-        ],
-        'match' => 'all', // 'all' or 'any'
-    ],
-    'is_active' => true,
-]);
-```
-
-## Available Operators
-
-| Operator | Description |
-|----------|-------------|
-| `equals` | Exact match |
-| `not_equals` | Not equal |
-| `greater_than` | Numeric comparison |
-| `less_than` | Numeric comparison |
-| `in` | Value in array |
-| `not_in` | Value not in array |
-| `contains` | String/array contains |
-| `starts_with` | String prefix |
-| `ends_with` | String suffix |
-
-## Common Targeting Examples
-
-### Minimum Order Value
+### Rule mode (`all` / `any`)
 
 ```php
 'conditions' => [
+    'mode' => 'all',
     'rules' => [
         [
-            'field' => 'cart_total',
-            'operator' => 'greater_than',
-            'value' => 5000, // $50 minimum
-        ],
-    ],
-],
-```
-
-### Specific Products
-
-```php
-'conditions' => [
-    'rules' => [
-        [
-            'field' => 'product_ids',
-            'operator' => 'contains',
-            'value' => 'prod-123',
-        ],
-    ],
-],
-```
-
-### Product Categories
-
-```php
-'conditions' => [
-    'rules' => [
-        [
-            'field' => 'category_ids',
-            'operator' => 'in',
-            'value' => ['electronics', 'computers'],
-        ],
-    ],
-],
-```
-
-### First-Time Customers
-
-```php
-'conditions' => [
-    'rules' => [
-        [
-            'field' => 'is_first_order',
-            'operator' => 'equals',
-            'value' => true,
-        ],
-    ],
-],
-```
-
-### Customer Segment
-
-```php
-'conditions' => [
-    'rules' => [
-        [
-            'field' => 'customer_group',
-            'operator' => 'in',
-            'value' => ['vip', 'wholesale'],
-        ],
-    ],
-],
-```
-
-### Geographic Targeting
-
-```php
-'conditions' => [
-    'rules' => [
-        [
-            'field' => 'shipping_country',
-            'operator' => 'in',
-            'value' => ['US', 'CA', 'GB'],
-        ],
-    ],
-],
-```
-
-## Complex Conditions
-
-### All Rules Must Match
-
-```php
-'conditions' => [
-    'match' => 'all',
-    'rules' => [
-        [
-            'field' => 'customer_group',
-            'operator' => 'equals',
-            'value' => 'vip',
-        ],
-        [
-            'field' => 'cart_total',
-            'operator' => 'greater_than',
-            'value' => 10000,
-        ],
-    ],
-],
-```
-
-### Any Rule Can Match
-
-```php
-'conditions' => [
-    'match' => 'any',
-    'rules' => [
-        [
-            'field' => 'is_first_order',
-            'operator' => 'equals',
-            'value' => true,
-        ],
-        [
-            'field' => 'customer_group',
-            'operator' => 'equals',
-            'value' => 'vip',
-        ],
-    ],
-],
-```
-
-## Nested Groups
-
-```php
-'conditions' => [
-    'match' => 'all',
-    'rules' => [
-        [
-            'field' => 'cart_total',
-            'operator' => 'greater_than',
+            'type' => 'cart_value',
+            'operator' => '>=',
             'value' => 5000,
         ],
     ],
-    'groups' => [
-        [
-            'match' => 'any',
-            'rules' => [
-                [
-                    'field' => 'category_ids',
-                    'operator' => 'contains',
-                    'value' => 'sale',
-                ],
-                [
-                    'field' => 'has_subscription',
-                    'operator' => 'equals',
-                    'value' => true,
+],
+```
+
+### Custom boolean expression mode
+
+```php
+'conditions' => [
+    'mode' => 'custom',
+    'expression' => [
+        'and' => [
+            [
+                'type' => 'cart_value',
+                'operator' => '>=',
+                'value' => 5000,
+            ],
+            [
+                'or' => [
+                    [
+                        'type' => 'channel',
+                        'operator' => '=',
+                        'value' => 'web',
+                    ],
+                    [
+                        'type' => 'user_segment',
+                        'operator' => 'in',
+                        'values' => ['vip'],
+                    ],
                 ],
             ],
         ],
@@ -207,28 +54,24 @@ $promotion = Promotion::create([
 ],
 ```
 
-## Evaluating Conditions
+## Common rule types
 
-The PromotionService evaluates conditions automatically:
+- `cart_value`
+- `cart_quantity`
+- `product_in_cart`
+- `category_in_cart`
+- `user_segment`
+- `first_purchase`
+- `channel`
+- `currency`
+- `payment_method`
 
-```php
-$context = [
-    'customer_group' => 'vip',
-    'cart_total' => 15000,
-    'is_first_order' => false,
-];
+## Validation behavior
 
-// Only returns promotions where conditions match
-$applicable = $service->getApplicablePromotions($context);
-```
+- `conditions = null` → no targeting restrictions.
+- `conditions = []` → normalized to `null` on save.
+- invalid conditions → rejected with validation/argument errors on write.
 
-## Caching
+## Runtime evaluation
 
-Targeting results can be cached via the config:
-
-```php
-// config/promotions.php
-'targeting' => [
-    'cache_ttl' => 3600, // Cache for 1 hour
-],
-```
+`PromotionService` evaluates stored conditions against a `TargetingContext` and returns only matching promotions.

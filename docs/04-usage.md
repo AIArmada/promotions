@@ -4,211 +4,91 @@ title: Usage
 
 # Usage
 
-This guide covers creating, managing, and applying promotions.
+This guide covers creating and applying promotions with the current model/service APIs.
 
-## Creating Promotions
-
-### Basic Promotion
+## Create promotions
 
 ```php
-use AIArmada\Promotions\Models\Promotion;
 use AIArmada\Promotions\Enums\PromotionType;
+use AIArmada\Promotions\Models\Promotion;
 
 $promotion = Promotion::create([
     'name' => 'Summer Sale',
     'type' => PromotionType::Percentage,
-    'discount_value' => 20, // 20% off
+    'discount_value' => 20,
     'is_active' => true,
 ]);
 ```
-
-### Promo Code
 
 ```php
 $codePromo = Promotion::create([
     'name' => 'Welcome Discount',
     'code' => 'WELCOME10',
     'type' => PromotionType::Fixed,
-    'discount_value' => 1000, // $10.00 in cents
+    'discount_value' => 1000, // minor units
     'usage_limit' => 100,
+    'per_customer_limit' => 1,
     'is_active' => true,
 ]);
 ```
 
-### Scheduled Campaign
+## Use scopes
 
 ```php
-$campaign = Promotion::create([
-    'name' => 'Black Friday',
-    'type' => PromotionType::Percentage,
-    'discount_value' => 30,
-    'starts_at' => now()->setDate(2024, 11, 29),
-    'ends_at' => now()->setDate(2024, 12, 2),
-    'is_active' => true,
-]);
-```
+$active = Promotion::query()->active()->get();
+$automatic = Promotion::query()->active()->automatic()->get();
+$coded = Promotion::query()->active()->withCode()->get();
 
-### With Limits
-
-```php
-$limited = Promotion::create([
-    'name' => 'VIP Discount',
-    'type' => PromotionType::Percentage,
-    'discount_value' => 25,
-    'min_order_value' => 5000,     // Minimum $50 order
-    'max_discount' => 2500,        // Cap at $25 discount
-    'usage_limit' => 500,          // 500 total uses
-    'usage_per_customer' => 1,     // Once per customer
-    'is_active' => true,
-]);
-```
-
-## Promotion Types
-
-### Percentage Discount
-
-```php
-$promotion = Promotion::create([
-    'name' => '20% Off',
-    'type' => PromotionType::Percentage,
-    'discount_value' => 20,
-    'is_active' => true,
-]);
-
-// Calculate discount
-$discount = $promotion->calculateDiscount(10000); // 2000 cents
-```
-
-### Fixed Amount
-
-```php
-$promotion = Promotion::create([
-    'name' => '$10 Off',
-    'type' => PromotionType::Fixed,
-    'discount_value' => 1000, // cents
-    'is_active' => true,
-]);
-
-// Calculate discount
-$discount = $promotion->calculateDiscount(5000); // 1000 cents
-$discount = $promotion->calculateDiscount(500);  // 500 cents (capped at order value)
-```
-
-### Buy X Get Y
-
-```php
-$promotion = Promotion::create([
-    'name' => 'Buy 2 Get 1 Free',
-    'type' => PromotionType::BuyXGetY,
-    'discount_value' => 1, // Free items
-    'conditions' => [
-        'buy_quantity' => 2,
-        'get_quantity' => 1,
-    ],
-    'is_active' => true,
-]);
-```
-
-## Querying Promotions
-
-### Active Promotions
-
-```php
-// Currently active
-$active = Promotion::active()->get();
-
-// Active automatic promotions (no code)
-$automatic = Promotion::active()
-    ->automatic()
-    ->get();
-
-// Active with specific code
-$codePromo = Promotion::active()
-    ->withCode('SUMMER20')
+$singleCode = Promotion::query()
+    ->active()
+    ->withCode()
+    ->where('code', 'WELCOME10')
     ->first();
 ```
 
-### By Priority
+## Discounts
 
 ```php
-// Highest priority first
-$promotions = Promotion::active()
-    ->orderByDesc('priority')
-    ->get();
+$promotion->calculateDiscount(10_000); // cents in, cents out
+$promotion->isActive();
+$promotion->hasRemainingUsage();
+$promotion->incrementUsage();
 ```
 
-### Stackable Promotions
+## Owner-aware querying
 
 ```php
-$stackable = Promotion::active()
-    ->where('is_stackable', true)
-    ->get();
+use AIArmada\CommerceSupport\Support\OwnerContext;
+
+$ownerPromotions = Promotion::query()->forOwner($tenant)->get();
+$ownerAndGlobal = Promotion::query()->forOwner($tenant, includeGlobal: true)->get();
+
+$globalOnly = OwnerContext::withOwner(null, fn () =>
+    Promotion::query()->forOwner()->get()
+);
 ```
 
-## Owner Scoping
-
-When owner scoping is enabled:
+## Promotion service
 
 ```php
-// Scope to specific owner
-$promotions = Promotion::forOwner($tenant)->get();
-
-// Query by owner type
-$teamPromos = Promotion::where('owner_type', Team::class)
-    ->where('owner_id', $team->id)
-    ->get();
-```
-
-## Using the Promotion Service
-
-### Get Applicable Promotions
-
-```php
+use AIArmada\CommerceSupport\Targeting\TargetingContext;
 use AIArmada\Promotions\Services\PromotionService;
 
 $service = app(PromotionService::class);
+$context = TargetingContext::fromCart($cart, [
+    'channel' => 'web',
+]);
 
-$context = [
-    'cart_total' => 15000,
-    'customer_id' => $customer->id,
-    'product_ids' => [1, 2, 3],
-];
+$applicable = $service->getApplicablePromotions($context);
+$best = $service->getBestPromotion($context);
+$stackable = $service->getStackablePromotions($context);
 
-$promotions = $service->getApplicablePromotions($context);
+$result = $service->calculateDiscounts($context, $subtotalInCents);
+// ['discount' => int, 'applied' => Collection<Promotion>]
 ```
 
-### Get Best Single Promotion
+## Conditions payload shape
 
-```php
-$best = $service->getBestPromotion($context, 15000);
-// Returns the promotion with highest discount
-```
+Promotion `conditions` are validated against the commerce-support targeting engine.
 
-### Get Stackable Promotions
-
-```php
-$stackable = $service->getStackablePromotions($context, 15000);
-// Returns promotions that can be combined
-```
-
-### Calculate All Discounts
-
-```php
-$discounts = $service->calculateDiscounts($context, 15000);
-// Returns array of promotion => discount pairs
-```
-
-## Activity Logging
-
-Promotions automatically log changes via Spatie ActivityLog:
-
-```php
-// View activity log
-$promotion->activities()->get();
-
-// Custom logging
-activity()
-    ->performedOn($promotion)
-    ->causedBy($user)
-    ->log('Promotion redeemed');
-```
+Empty conditions are treated as no conditions (`null`). Invalid payloads are rejected at write-time.
