@@ -18,7 +18,7 @@ Automatic promotional discounts and campaigns for commerce applications.
 ## Requirements
 
 - PHP 8.4+
-- Laravel 12+
+- Laravel 13+
 - commerce-support package
 
 ## Installation

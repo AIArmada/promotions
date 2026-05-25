@@ -4,6 +4,43 @@ title: Overview
 
 # Promotions Package
 
+## Purpose
+
+The `aiarmada/promotions` package owns automatic and code-based discount campaigns, targeting-driven eligibility evaluation, and owner-aware promotion rules.
+
+## What this package owns
+
+- Promotion records, discount types, campaign schedules, usage limits, and stackability rules
+- Targeting payload storage and evaluation for promotion eligibility
+- Promotion activity logging for core promotion fields
+- Owner-aware promotion queries and write guards
+
+## What this package does not own
+
+- Product, cart, or order persistence
+- Voucher issuance and wallet flows (`aiarmada/vouchers`)
+- Filament admin surfaces (`aiarmada/filament-promotions`)
+- Price-list management (`aiarmada/pricing`)
+
+## Related packages
+
+- [`aiarmada/filament-promotions`](../../filament-promotions/docs/01-overview.md) — Filament admin resources and widgets for promotion operations
+- [`aiarmada/pricing`](../../pricing/docs/01-overview.md) — pricing resolution that may consume active promotions
+- [`aiarmada/products`](../../products/docs/01-overview.md) — optional product/category targeting context
+- [`aiarmada/commerce-support`](../../commerce-support/docs/01-overview.md) — owner scoping and targeting engine primitives
+
+## Main models services or surfaces
+
+- **Model** — `Promotion`
+- **Core surfaces** — promotion targeting evaluation, usage-limit enforcement, code and automatic promotion flows
+- **Docs deep dives** — promotion service and targeting internals live in the companion docs pages for this package
+
+## Owner scoping and security notes
+
+- Promotions are owner-aware and should follow the `commerce-support` owner-boundary rules
+- Filtered admin options are not sufficient authorization; consuming packages still need to validate inbound identifiers and promotion applicability inside the current owner scope
+- Shared or global promotions should remain explicit rather than relying on missing owner context
+
 `aiarmada/promotions` provides automatic and code-based discounts with owner-aware behavior and targeting-engine evaluation.
 
 ## Highlights
@@ -42,6 +79,16 @@ title: Overview
 ## Requirements
 
 - PHP 8.4+
-- Laravel 11+
+- Laravel 13+
 - `aiarmada/commerce-support`
 - `spatie/laravel-activitylog`
+
+## Read next
+
+- [Installation](02-installation.md)
+- [Configuration](03-configuration.md)
+- [Usage](04-usage.md)
+- [Promotion service](05-promotion-service.md)
+- [Targeting](06-targeting.md)
+- [Multitenancy](07-multitenancy.md)
+- [Filament Promotions overview](../../filament-promotions/docs/01-overview.md)
