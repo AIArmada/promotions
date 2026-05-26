@@ -26,6 +26,11 @@ interface PromotionServiceInterface
     public function getBestPromotion(TargetingContext $context): ?Promotion;
 
     /**
+     * Resolve an applicable code-based promotion for the given context.
+     */
+    public function findApplicableCodePromotion(string $code, TargetingContext $context): ?Promotion;
+
+    /**
      * Get all stackable promotions for the given context.
      *
      * @return Collection<int, Promotion>

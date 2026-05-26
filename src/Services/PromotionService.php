@@ -44,6 +44,29 @@ final class PromotionService implements PromotionServiceInterface
     }
 
     /**
+     * Resolve an applicable code-based promotion for the given context.
+     */
+    public function findApplicableCodePromotion(string $code, TargetingContext $context): ?Promotion
+    {
+        $normalizedCode = mb_trim($code);
+
+        if ($normalizedCode === '') {
+            return null;
+        }
+
+        /** @var Collection<int, Promotion> $promotions */
+        $promotions = Promotion::query()
+            ->active()
+            ->withCode()
+            ->forOwner()
+            ->whereRaw('LOWER(code) = LOWER(?)', [$normalizedCode])
+            ->orderByDesc('priority')
+            ->get();
+
+        return $promotions->first(fn (Promotion $promotion): bool => $this->matchesContext($promotion, $context));
+    }
+
+    /**
      * Get all stackable promotions for the given context.
      *
      * @return Collection<int, Promotion>
