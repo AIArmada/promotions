@@ -32,7 +32,7 @@ return [
     */
     'features' => [
         'owner' => [
-            'enabled' => true,
+            'enabled' => false,
             'include_global' => false,
             'auto_assign_on_create' => true,
         ],
