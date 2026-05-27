@@ -13,7 +13,7 @@ return [
             'promotions' => 'promotions',
             'promotionables' => 'promotionables',
         ],
-        'json_column_type' => env('PROMOTIONS_JSON_COLUMN_TYPE', env('COMMERCE_JSON_COLUMN_TYPE', 'json')),
+        'json_column_type' => env('PROMOTIONS_JSON_COLUMN_TYPE', env('COMMERCE_JSON_COLUMN_TYPE', 'jsonb')),
     ],
 
     /*
@@ -22,7 +22,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'defaults' => [
-        'currency' => 'USD',
+        'currency' => 'MYR',
     ],
 
     /*
