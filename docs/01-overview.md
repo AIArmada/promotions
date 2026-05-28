@@ -12,13 +12,14 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 
 - Promotion records, discount types, campaign schedules, usage limits, and stackability rules
 - Targeting payload storage and evaluation for promotion eligibility
+- Promotion-to-voucher issuance orchestration when the vouchers package is installed
 - Promotion activity logging for core promotion fields
 - Owner-aware promotion queries and write guards
 
 ## What this package does not own
 
 - Product, cart, or order persistence
-- Voucher issuance and wallet flows (`aiarmada/vouchers`)
+- Voucher validation, redemption, persistence, and wallet flows (`aiarmada/vouchers`)
 - Filament admin surfaces (`aiarmada/filament-promotions`)
 - Price-list management (`aiarmada/pricing`)
 
@@ -27,6 +28,7 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 - [`aiarmada/filament-promotions`](../../filament-promotions/docs/01-overview.md) — Filament admin resources and widgets for promotion operations
 - [`aiarmada/pricing`](../../pricing/docs/01-overview.md) — pricing resolution that may consume active promotions
 - [`aiarmada/products`](../../products/docs/01-overview.md) — optional product/category targeting context
+- [`aiarmada/vouchers`](../../vouchers/docs/01-overview.md) — voucher persistence, redemption, and reporting for promotion-issued vouchers
 - [`aiarmada/commerce-support`](../../commerce-support/docs/01-overview.md) — owner scoping and targeting engine primitives
 
 ## Main models services or surfaces
@@ -51,6 +53,7 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 - Scheduling (`starts_at`, `ends_at`)
 - Stackable/non-stackable control
 - Targeting conditions powered by commerce-support
+- Optional promotion-issued one-time vouchers for recovery or targeted distribution campaigns
 - Owner-aware scoping and write guards
 - Activity logging for core promotion fields
 
