@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AIArmada\Promotions\Models;
 
+use AIArmada\CommerceSupport\Concerns\HasCommerceAudit;
 use AIArmada\CommerceSupport\Concerns\LogsCommerceActivity;
 use AIArmada\CommerceSupport\Support\OwnerContext;
 use AIArmada\CommerceSupport\Targeting\Contracts\TargetingEngineInterface;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
+use OwenIt\Auditing\Contracts\Auditable;
 use RuntimeException;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -47,8 +49,9 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-class Promotion extends Model
+class Promotion extends Model implements Auditable
 {
+    use HasCommerceAudit;
     use HasOwner {
         scopeForOwner as baseScopeForOwner;
     }
@@ -303,6 +306,33 @@ class Promotion extends Model
             ->logOnly(['name', 'code', 'type', 'discount_value', 'priority', 'is_stackable', 'usage_limit', 'is_active', 'starts_at', 'ends_at'])
             ->logOnlyDirty()
             ->useLogName('promotions');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getAuditInclude(): array
+    {
+        return [
+            'owner_type',
+            'owner_id',
+            'name',
+            'code',
+            'description',
+            'type',
+            'discount_value',
+            'priority',
+            'is_stackable',
+            'is_active',
+            'usage_limit',
+            'usage_count',
+            'per_customer_limit',
+            'min_purchase_amount',
+            'min_quantity',
+            'conditions',
+            'starts_at',
+            'ends_at',
+        ];
     }
 
     // =========================================================================
