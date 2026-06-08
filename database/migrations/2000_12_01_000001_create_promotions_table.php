@@ -35,10 +35,10 @@ return new class extends Migration
 
             $table->{$jsonColumnType}('conditions')->nullable();
 
-            $table->timestamp('starts_at')->nullable();
-            $table->timestamp('ends_at')->nullable();
+            $table->timestampTz('starts_at')->nullable();
+            $table->timestampTz('ends_at')->nullable();
 
-            $table->timestamps();
+            $table->timestampsTz();
 
             $table->index(['is_active', 'priority']);
             $table->index(['starts_at', 'ends_at']);
