@@ -10,19 +10,24 @@ use AIArmada\CommerceSupport\Support\OwnerContext;
 use AIArmada\CommerceSupport\Targeting\Contracts\TargetingEngineInterface;
 use AIArmada\CommerceSupport\Traits\HasOwner;
 use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
+use AIArmada\Promotions\Database\Factories\PromotionFactory;
 use AIArmada\Promotions\Enums\PromotionType;
 use AIArmada\Promotions\Support\PromotionsOwnerScope;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 use OwenIt\Auditing\Contracts\Auditable;
 use RuntimeException;
 use Spatie\Activitylog\Support\LogOptions;
+use Throwable;
 
 /**
  * Represents an automatic promotional discount campaign.
@@ -52,6 +57,10 @@ use Spatie\Activitylog\Support\LogOptions;
 class Promotion extends Model implements Auditable
 {
     use HasCommerceAudit;
+
+    /** @use HasFactory<PromotionFactory> */
+    use HasFactory;
+
     use HasOwner {
         scopeForOwner as baseScopeForOwner;
     }
@@ -117,8 +126,6 @@ class Promotion extends Model implements Auditable
 
     /**
      * Products included in this promotion.
-     *
-     * @return MorphToMany<Model, $this>
      */
     public function products(): MorphToMany
     {
@@ -137,8 +144,6 @@ class Promotion extends Model implements Auditable
 
     /**
      * Categories included in this promotion.
-     *
-     * @return MorphToMany<Model, $this>
      */
     public function categories(): MorphToMany
     {
@@ -153,6 +158,59 @@ class Promotion extends Model implements Auditable
             'promotionable',
             (string) config('promotions.database.tables.promotionables', 'promotionables')
         );
+    }
+
+    /**
+     * Issued vouchers linked to this promotion (optional integration).
+     *
+     * @return HasMany<Model, $this>
+     */
+    public function issuedVouchers(): HasMany
+    {
+        $voucherModelClass = self::issuedVoucherModelClass();
+
+        if ($voucherModelClass === null) {
+            return $this->hasMany(Model::class, 'id', 'id')->whereRaw('1 = 0');
+        }
+
+        return $this->hasMany($voucherModelClass, 'promotion_id');
+    }
+
+    public static function supportsIssuedVoucherTracking(): bool
+    {
+        $voucherModelClass = self::issuedVoucherModelClass();
+
+        if ($voucherModelClass === null) {
+            return false;
+        }
+
+        try {
+            /** @var Model $voucher */
+            $voucher = new $voucherModelClass;
+            $table = $voucher->getTable();
+
+            return Schema::hasTable($table) && Schema::hasColumn($table, 'promotion_id');
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * @return class-string<Model>|null
+     */
+    private static function issuedVoucherModelClass(): ?string
+    {
+        foreach ([
+            '\\AIArmada\\Vouchers\\Models\\Voucher',
+        ] as $voucherModelClass) {
+            if (class_exists($voucherModelClass)) {
+                /** @var class-string<Model> $voucherModelClass */
+
+                return $voucherModelClass;
+            }
+        }
+
+        return null;
     }
 
     // =========================================================================

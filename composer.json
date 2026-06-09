@@ -21,7 +21,8 @@
     },
     "autoload": {
         "psr-4": {
-            "AIArmada\\Promotions\\": "src/"
+            "AIArmada\\Promotions\\": "src/",
+            "AIArmada\\Promotions\\Database\\Factories\\": "database/factories/"
         }
     },
     "extra": {
