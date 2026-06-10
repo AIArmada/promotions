@@ -4,6 +4,40 @@ title: Usage
 
 # Usage
 
+## Canonical API: Actions
+
+These Action classes are the recommended entry points for promotion operations.
+
+```php
+use AIArmada\Promotions\Actions\CreatePromotion;
+use AIArmada\Promotions\Actions\ApplyPromotionToCart;
+use AIArmada\Promotions\Actions\EvaluatePromotionForCart;
+use AIArmada\Promotions\Actions\DeactivatePromotion;
+use AIArmada\CommerceSupport\Targeting\TargetingContext;
+
+// Create a promotion
+$promotion = CreatePromotion::run([
+    'name' => 'Summer Sale',
+    'type' => 'percentage',
+    'discount_value' => 20,
+    'is_active' => true,
+]);
+
+// Evaluate eligibility against a cart context
+$eligible = EvaluatePromotionForCart::run(
+    $promotion,
+    TargetingContext::fromCart($cart, ['channel' => 'web']),
+);
+
+// Calculate the discount amount
+$discountInCents = ApplyPromotionToCart::run($promotion, $subtotalInCents);
+
+// Deactivate a promotion
+DeactivatePromotion::run($promotion);
+```
+
+See `docs/05-promotion-service.md` for the legacy service API.
+
 This guide covers creating and applying promotions with the current model/service APIs.
 
 ## Create promotions

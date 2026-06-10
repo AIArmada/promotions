@@ -4,6 +4,8 @@ title: Promotion Service
 
 # Promotion Service
 
+> **Deprecated** — The Actions in `AIArmada\Promotions\Actions` are now the canonical API. Prefer `CreatePromotion`, `ApplyPromotionToCart`, `EvaluatePromotionForCart`, and `DeactivatePromotion` over `PromotionService` for new code.
+
 `PromotionService` finds and evaluates automatic promotions against a `TargetingContext`.
 
 ## Interface summary

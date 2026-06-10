@@ -75,3 +75,5 @@ Promotions use the commerce-support targeting engine. The `conditions` column mu
 ## Runtime evaluation
 
 `PromotionService` evaluates stored conditions against a `TargetingContext` and returns only matching promotions.
+
+For single-promotion eligibility checks, use `EvaluatePromotionForCart::run($promotion, $context)` instead — it applies the same targeting-engine logic in a reusable Action without the service-layer overhead.
