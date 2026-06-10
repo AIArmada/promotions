@@ -16,8 +16,8 @@
 |------|--------|----------|
 | Original Finding #1 vs actual Actions | ⚠️ Drift | The friendly.md recommended `AttachPromotionToProduct` but `IssueVouchersFromPromotion` was created instead. The original recommendation was speculative — actual feature needs drove a different Action. |
 | Finding #4 — No Events/ directory | ✅ Resolved | Previously `(none)`, now 4 events exist. |
-| Finding #5 — No Console/Commands | 🔴 Still open | No `src/Console/Commands` directory. Bulk operations (deactivate expired, refresh eligibility) have no home. |
-| Finding #6 — No Listeners/ | 🔴 Still open | No `src/Listeners` directory. Still no cross-package reaction surface. |
+| Finding #5 — No Console/Commands | ✅ Resolved | `src/Console/Commands` exists with `DeactivateExpiredPromotionsCommand` and `RecomputePromotionEligibilityCommand`. |
+| Finding #6 — No Listeners/ | ✅ Resolved | `src/Listeners` exists with `MarkPromotionAsUsedOnOrderPlaced` and `ReevaluatePromotionsOnCartUpdated`. |
 | Stacking coordination (Finding #3) | 🔴 Still open | Vouchers has a full `StackingRuleRegistry` but promotions has no integration with it. Combined voucher+promotion stacking rules are undefined. |
 
 ### New findings
