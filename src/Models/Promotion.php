@@ -43,6 +43,7 @@ use Throwable;
  * @property int $priority
  * @property bool $is_stackable
  * @property bool $is_active
+ * @property Carbon|null $deactivated_at
  * @property int|null $usage_limit
  * @property int $usage_count
  * @property int|null $per_customer_limit
@@ -80,6 +81,7 @@ class Promotion extends Model implements Auditable
         'priority',
         'is_stackable',
         'is_active',
+        'deactivated_at',
         'usage_limit',
         'per_customer_limit',
         'min_purchase_amount',
@@ -96,14 +98,15 @@ class Promotion extends Model implements Auditable
         'priority' => 'integer',
         'is_stackable' => 'boolean',
         'is_active' => 'boolean',
+        'deactivated_at' => 'immutable_datetime',
         'usage_limit' => 'integer',
         'usage_count' => 'integer',
         'per_customer_limit' => 'integer',
         'min_purchase_amount' => 'integer',
         'min_quantity' => 'integer',
         'conditions' => 'array',
-        'starts_at' => 'datetime',
-        'ends_at' => 'datetime',
+        'starts_at' => 'immutable_datetime',
+        'ends_at' => 'immutable_datetime',
     ];
 
     /** @var array<string, mixed> */
