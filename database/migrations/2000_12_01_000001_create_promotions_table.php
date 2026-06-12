@@ -25,6 +25,7 @@ return new class extends Migration
             $table->integer('priority')->default(0);
             $table->boolean('is_stackable')->default(false);
             $table->boolean('is_active')->default(true);
+            $table->timestampTz('deactivated_at')->nullable();
 
             $table->unsignedInteger('usage_limit')->nullable();
             $table->unsignedInteger('usage_count')->default(0);
