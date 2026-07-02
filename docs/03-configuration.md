@@ -16,14 +16,14 @@ return [
             'promotions' => 'promotions',
             'promotionables' => 'promotionables',
         ],
-        'json_column_type' => 'json',
+        'json_column_type' => env('PROMOTIONS_JSON_COLUMN_TYPE', env('COMMERCE_JSON_COLUMN_TYPE', 'jsonb')),
     ],
 
     'features' => [
         'owner' => [
-            'enabled' => true,
-            'include_global' => false,
-            'auto_assign_on_create' => true,
+            'enabled' => env('PROMOTIONS_OWNER_ENABLED', false),
+            'include_global' => env('PROMOTIONS_OWNER_INCLUDE_GLOBAL', false),
+            'auto_assign_on_create' => env('PROMOTIONS_OWNER_AUTO_ASSIGN_ON_CREATE', true),
         ],
     ],
 ];
