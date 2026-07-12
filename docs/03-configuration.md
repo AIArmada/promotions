@@ -16,7 +16,6 @@ return [
             'promotions' => 'promotions',
             'promotionables' => 'promotionables',
         ],
-        'json_column_type' => env('PROMOTIONS_JSON_COLUMN_TYPE', env('COMMERCE_JSON_COLUMN_TYPE', 'jsonb')),
     ],
 
     'features' => [
@@ -38,7 +37,6 @@ return [
 ## Database settings
 
 - `database.tables.*` overrides table names.
-- `database.json_column_type` can be switched to `text` for engines without native JSON support.
 
 ## Environment overrides
 

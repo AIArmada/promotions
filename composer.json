@@ -1,37 +1,40 @@
 {
-    "name": "aiarmada/promotions",
-    "description": "Automatic promotions and discount campaigns for commerce",
-    "type": "library",
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "AIArmada Team"
-        }
-    ],
-    "require": {
-        "php": "^8.4",
-        "aiarmada/commerce-support": "self.version",
-        "illuminate/database": "^13.15.0",
-        "illuminate/support": "^13.15.0",
-        "spatie/laravel-activitylog": "^5.0.0",
-        "spatie/laravel-data": "^4.23.0"
-    },
-    "suggest": {
-        "aiarmada/products": "For product/category targeting in promotions"
-    },
-    "autoload": {
-        "psr-4": {
-            "AIArmada\\Promotions\\": "src/",
-            "AIArmada\\Promotions\\Database\\Factories\\": "database/factories/"
-        }
-    },
-    "extra": {
-        "laravel": {
-            "providers": [
-                "AIArmada\\Promotions\\PromotionsServiceProvider"
-            ]
-        }
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+  "name": "aiarmada/promotions",
+  "description": "Automatic promotions and discount campaigns for commerce",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "AIArmada Team"
+    }
+  ],
+  "require": {
+    "php": "^8.4",
+    "aiarmada/commerce-support": "self.version",
+    "illuminate/database": "^13.15.0",
+    "illuminate/support": "^13.15.0",
+    "spatie/laravel-activitylog": "^5.0.0",
+    "spatie/laravel-data": "^4.23.0"
+  },
+  "suggest": {
+    "aiarmada/cart": "Optional integration",
+    "aiarmada/orders": "Optional integration",
+    "aiarmada/products": "For product/category targeting in promotions",
+    "aiarmada/vouchers": "Optional integration"
+  },
+  "autoload": {
+    "psr-4": {
+      "AIArmada\\Promotions\\": "src/",
+      "AIArmada\\Promotions\\Database\\Factories\\": "database/factories/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "AIArmada\\Promotions\\PromotionsServiceProvider"
+      ]
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
 }

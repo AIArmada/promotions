@@ -13,7 +13,6 @@ return [
             'promotions' => 'promotions',
             'promotionables' => 'promotionables',
         ],
-        'json_column_type' => env('PROMOTIONS_JSON_COLUMN_TYPE', env('COMMERCE_JSON_COLUMN_TYPE', 'jsonb')),
     ],
 
     /*
