@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace AIArmada\Promotions;
 
+use AIArmada\Orders\Events\OrderPaid;
 use AIArmada\Promotions\Console\Commands\DeactivateExpiredPromotionsCommand;
 use AIArmada\Promotions\Console\Commands\RecomputePromotionEligibilityCommand;
 use AIArmada\Promotions\Contracts\PromotionServiceInterface;
+use AIArmada\Promotions\Listeners\MarkPromotionAsUsedOnOrderPlaced;
 use AIArmada\Promotions\Services\PromotionService;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class PromotionsServiceProvider extends ServiceProvider
@@ -25,6 +28,15 @@ class PromotionsServiceProvider extends ServiceProvider
             $this->publishConfig();
             $this->publishMigrations();
             $this->registerCommands();
+        }
+
+        $this->registerEventListeners();
+    }
+
+    private function registerEventListeners(): void
+    {
+        if (class_exists(OrderPaid::class)) {
+            Event::listen(OrderPaid::class, MarkPromotionAsUsedOnOrderPlaced::class);
         }
     }
 

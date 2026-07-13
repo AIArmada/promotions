@@ -40,7 +40,7 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 - **Contracts** — `PromotionStrategyInterface`, `PromotionServiceInterface`
 - **Console commands** — `DeactivateExpiredPromotionsCommand`, `RecomputePromotionEligibilityCommand`
 - **Listeners** — `MarkPromotionAsUsedOnOrderPlaced`, `ReevaluatePromotionsOnCartUpdated`
-- **Support** — `StackingCoordinationRegistrar`, `PromotionPerformanceInsights`
+- **Support** — `PromotionPerformanceInsights`
 - **Core surfaces** — promotion targeting evaluation, usage-limit enforcement, code and automatic promotion flows
 - **Docs deep dives** — promotion service and targeting internals live in the companion docs pages for this package
 

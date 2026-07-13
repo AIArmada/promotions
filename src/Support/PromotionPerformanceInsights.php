@@ -117,7 +117,7 @@ final class PromotionPerformanceInsights
         $query = Promotion::query();
 
         /** @var Builder<Promotion> $scoped */
-        $scoped = PromotionsOwnerScope::applyToOwnedQuery($query);
+        $scoped = $query;
 
         return $scoped;
     }

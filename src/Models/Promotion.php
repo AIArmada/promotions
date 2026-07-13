@@ -12,7 +12,6 @@ use AIArmada\CommerceSupport\Traits\HasOwner;
 use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
 use AIArmada\Promotions\Database\Factories\PromotionFactory;
 use AIArmada\Promotions\Enums\PromotionType;
-use AIArmada\Promotions\Support\PromotionsOwnerScope;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -273,11 +272,11 @@ class Promotion extends Model implements Auditable
      */
     public function scopeForOwner(Builder $query, ?Model $owner = null, bool $includeGlobal = true): Builder
     {
-        if (! PromotionsOwnerScope::isEnabled()) {
+        if (! config('promotions.features.owner.enabled', false)) {
             return $query;
         }
 
-        $includeGlobal = $includeGlobal && PromotionsOwnerScope::includeGlobal();
+        $includeGlobal = $includeGlobal && config('promotions.features.owner.include_global', false);
 
         $ownerToScope = $owner;
 
@@ -403,11 +402,11 @@ class Promotion extends Model implements Auditable
     protected static function booted(): void
     {
         static::updating(function (Promotion $promotion): void {
-            if (! PromotionsOwnerScope::isEnabled()) {
+            if (! config('promotions.features.owner.enabled', false)) {
                 return;
             }
 
-            $owner = PromotionsOwnerScope::resolveOwner();
+            $owner = OwnerContext::resolve();
 
             if ($owner !== null && ! $promotion->belongsToOwner($owner)) {
                 throw new AuthorizationException('Cannot update promotions outside the current owner scope.');
@@ -433,7 +432,7 @@ class Promotion extends Model implements Auditable
                 }
             }
 
-            if (! PromotionsOwnerScope::isEnabled()) {
+            if (! config('promotions.features.owner.enabled', false)) {
                 return;
             }
 
@@ -444,7 +443,7 @@ class Promotion extends Model implements Auditable
                 throw new InvalidArgumentException('Invalid owner columns: owner_type and owner_id must be both set or both null.');
             }
 
-            $owner = PromotionsOwnerScope::resolveOwner();
+            $owner = OwnerContext::resolve();
 
             if ($owner === null) {
                 if ($promotion->owner_type !== null || $promotion->owner_id !== null) {
@@ -472,8 +471,8 @@ class Promotion extends Model implements Auditable
         });
 
         static::deleting(function (Promotion $promotion): void {
-            if (PromotionsOwnerScope::isEnabled()) {
-                $owner = PromotionsOwnerScope::resolveOwner();
+            if (config('promotions.features.owner.enabled', false)) {
+                $owner = OwnerContext::resolve();
 
                 if ($owner === null) {
                     if ($promotion->owner_type !== null || $promotion->owner_id !== null) {

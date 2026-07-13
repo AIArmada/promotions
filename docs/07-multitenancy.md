@@ -51,4 +51,4 @@ $global = OwnerContext::withOwner(null, fn () =>
 
 ## Filament integration
 
-`filament-promotions` scopes list/query surfaces through `PromotionsOwnerScope::applyToOwnedQuery()` and re-checks destructive actions against the current owner.
+`filament-promotions` scopes list/query surfaces through the `forOwner()` scope provided by `HasOwner` and re-checks destructive actions against the current owner.
