@@ -6,7 +6,6 @@ namespace AIArmada\Promotions;
 
 use AIArmada\Orders\Events\OrderPaid;
 use AIArmada\Promotions\Console\Commands\DeactivateExpiredPromotionsCommand;
-use AIArmada\Promotions\Console\Commands\RecomputePromotionEligibilityCommand;
 use AIArmada\Promotions\Contracts\PromotionServiceInterface;
 use AIArmada\Promotions\Listeners\MarkPromotionAsUsedOnOrderPlaced;
 use AIArmada\Promotions\Services\PromotionService;
@@ -60,7 +59,6 @@ class PromotionsServiceProvider extends ServiceProvider
     {
         $this->commands([
             DeactivateExpiredPromotionsCommand::class,
-            RecomputePromotionEligibilityCommand::class,
         ]);
     }
 }

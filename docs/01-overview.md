@@ -38,7 +38,6 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 - **Events** — `PromotionCreated`, `PromotionApplied`, `PromotionRemoved`, `PromotionDeactivated`
 - **Strategies** — `FixedStrategy`, `PercentageStrategy`, `BuyXGetYStrategy` (resolved via `PromotionStrategyInterface`)
 - **Contracts** — `PromotionStrategyInterface`, `PromotionServiceInterface`
-- **Console commands** — `DeactivateExpiredPromotionsCommand`, `RecomputePromotionEligibilityCommand`
 - **Listeners** — `MarkPromotionAsUsedOnOrderPlaced`, `ReevaluatePromotionsOnCartUpdated`
 - **Support** — `PromotionPerformanceInsights`
 - **Core surfaces** — promotion targeting evaluation, usage-limit enforcement, code and automatic promotion flows
@@ -66,7 +65,6 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 - Action-based API: `CreatePromotion`, `ApplyPromotionToCart`, `EvaluatePromotionForCart`, `DeactivatePromotion`
 - Strategy pattern: `FixedStrategy`, `PercentageStrategy`, `BuyXGetYStrategy` via `PromotionStrategyInterface`
 - Events for extensibility: `PromotionCreated`, `PromotionApplied`, `PromotionRemoved`, `PromotionDeactivated`
-- Console commands: `DeactivateExpiredPromotionsCommand`, `RecomputePromotionEligibilityCommand`
 
 ## Core model fields
 
