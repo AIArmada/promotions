@@ -36,7 +36,7 @@ $discountInCents = ApplyPromotionToCart::run($promotion, $subtotalInCents);
 DeactivatePromotion::run($promotion);
 ```
 
-See `docs/05-promotion-service.md` for the legacy service API.
+See `docs/05-promotion-service.md` for the service API.
 
 This guide covers creating and applying promotions with the current model/service APIs.
 
