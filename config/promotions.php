@@ -9,6 +9,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'database' => [
+        'json_column_type' => env('PROMOTIONS_JSON_COLUMN_TYPE', 'jsonb'),
         'tables' => [
             'promotions' => 'promotions',
             'promotionables' => 'promotionables',

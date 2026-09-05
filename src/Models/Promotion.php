@@ -12,6 +12,7 @@ use AIArmada\CommerceSupport\Traits\HasOwner;
 use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
 use AIArmada\Promotions\Database\Factories\PromotionFactory;
 use AIArmada\Promotions\Enums\PromotionType;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -227,7 +228,7 @@ class Promotion extends Model implements Auditable
      */
     public function scopeActive(Builder $query): Builder
     {
-        $now = now();
+        $now = CarbonImmutable::now();
 
         return $query->where('is_active', true)
             ->where(function (Builder $q) use ($now): void {
@@ -300,7 +301,7 @@ class Promotion extends Model implements Auditable
             return false;
         }
 
-        $now = now();
+        $now = CarbonImmutable::now();
 
         if ($this->starts_at && $this->starts_at > $now) {
             return false;

@@ -6,8 +6,8 @@ namespace AIArmada\Promotions\Console\Commands;
 
 use AIArmada\Promotions\Actions\DeactivatePromotion;
 use AIArmada\Promotions\Models\Promotion;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
 
 final class DeactivateExpiredPromotionsCommand extends Command
 {
@@ -18,7 +18,7 @@ final class DeactivateExpiredPromotionsCommand extends Command
 
     public function handle(DeactivatePromotion $deactivatePromotion): int
     {
-        $now = Carbon::now();
+        $now = CarbonImmutable::now();
 
         $expired = Promotion::query()
             ->where('is_active', true)

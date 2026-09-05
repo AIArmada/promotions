@@ -12,7 +12,7 @@ return new class extends Migration
     {
         $jsonColumnType = commerce_json_column_type('promotions', 'jsonb');
 
-        Schema::create((string) config('promotions.database.tables.promotions', 'promotions'), function (Blueprint $table) use ($jsonColumnType): void {
+        commerce_schema_create_if_missing((string) config('promotions.database.tables.promotions', 'promotions'), function (Blueprint $table) use ($jsonColumnType): void {
             $table->uuid('id')->primary();
             $table->nullableMorphs('owner');
             $table->string('name');
@@ -45,7 +45,7 @@ return new class extends Migration
             $table->index(['starts_at', 'ends_at']);
         });
 
-        Schema::create((string) config('promotions.database.tables.promotionables', 'promotionables'), function (Blueprint $table): void {
+        commerce_schema_create_if_missing((string) config('promotions.database.tables.promotionables', 'promotionables'), function (Blueprint $table): void {
             $table->foreignUuid('promotion_id');
             $table->uuidMorphs('promotionable');
 
