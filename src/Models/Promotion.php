@@ -334,7 +334,6 @@ class Promotion extends Model implements Auditable
         return match ($this->type) {
             PromotionType::Percentage => (int) round($priceInCents * ($this->discount_value / 100)),
             PromotionType::Fixed => min($this->discount_value, $priceInCents),
-            PromotionType::BuyXGetY => 0, // Handled separately
         };
     }
 

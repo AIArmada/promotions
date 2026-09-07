@@ -13,14 +13,12 @@ enum PromotionType: string
 {
     case Percentage = 'percentage';
     case Fixed = 'fixed';
-    case BuyXGetY = 'buy_x_get_y';
 
     public function label(): string
     {
         return match ($this) {
             self::Percentage => 'Percentage Off',
             self::Fixed => 'Fixed Amount',
-            self::BuyXGetY => 'Buy X Get Y',
         };
     }
 
@@ -29,7 +27,6 @@ enum PromotionType: string
         return match ($this) {
             self::Percentage => 'heroicon-o-receipt-percent',
             self::Fixed => 'heroicon-o-currency-dollar',
-            self::BuyXGetY => 'heroicon-o-gift',
         };
     }
 
@@ -38,7 +35,6 @@ enum PromotionType: string
         return match ($this) {
             self::Percentage => 'success',
             self::Fixed => 'primary',
-            self::BuyXGetY => 'warning',
         };
     }
 
@@ -47,7 +43,6 @@ enum PromotionType: string
         return match ($this) {
             self::Percentage => "{$value}%",
             self::Fixed => MoneyFormatter::formatMinor($value, (string) config('promotions.defaults.currency', 'USD')),
-            self::BuyXGetY => "Buy X Get {$value}",
         };
     }
 }

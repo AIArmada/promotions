@@ -81,11 +81,6 @@ final class IssueVouchersFromPromotion
     private function buildVoucherPayload(Promotion $promotion, int $sequence, ?string $codePrefix): array
     {
         $currency = (string) config('promotions.defaults.currency', config('vouchers.default_currency', 'MYR'));
-        $metadata = array_filter([
-            'source_promotion_id' => $promotion->id,
-            'source_promotion_name' => $promotion->name,
-            'source_promotion_code' => $promotion->code,
-        ], static fn (mixed $value): bool => $value !== null && $value !== '');
 
         return [
             'code' => $this->buildVoucherCode($promotion, $sequence, $codePrefix),
@@ -93,7 +88,7 @@ final class IssueVouchersFromPromotion
             'description' => $promotion->description,
             'type' => $this->mapVoucherType($promotion->type),
             'value' => $this->mapVoucherValue($promotion),
-            'value_config' => $this->buildValueConfig($promotion),
+            'value_config' => null,
             'currency' => $currency,
             'min_cart_value' => $promotion->min_purchase_amount,
             'usage_limit' => 1,
@@ -103,7 +98,6 @@ final class IssueVouchersFromPromotion
             'owner_type' => $promotion->owner_type,
             'owner_id' => $promotion->owner_id,
             'target_definition' => $this->buildTargetDefinition($promotion),
-            'metadata' => $metadata !== [] ? $metadata : null,
             'promotion_id' => $promotion->id,
         ];
     }
@@ -131,7 +125,6 @@ final class IssueVouchersFromPromotion
         return match ($type) {
             PromotionType::Percentage => 'percentage',
             PromotionType::Fixed => 'fixed',
-            PromotionType::BuyXGetY => 'buy_x_get_y',
         };
     }
 
@@ -140,34 +133,7 @@ final class IssueVouchersFromPromotion
         return match ($promotion->type) {
             PromotionType::Percentage => $promotion->discount_value * 100,
             PromotionType::Fixed => $promotion->discount_value,
-            PromotionType::BuyXGetY => 0,
         };
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function buildValueConfig(Promotion $promotion): ?array
-    {
-        if ($promotion->type !== PromotionType::BuyXGetY) {
-            return null;
-        }
-
-        $buyQuantity = max(1, (int) ($promotion->min_quantity ?? 1));
-        $getQuantity = max(1, $promotion->discount_value);
-
-        return [
-            'buy' => [
-                'quantity' => $buyQuantity,
-                'product_matcher' => ['type' => 'all'],
-            ],
-            'get' => [
-                'quantity' => $getQuantity,
-                'discount' => '100%',
-                'selection' => 'cheapest',
-                'product_matcher' => ['type' => 'same_as_buy'],
-            ],
-        ];
     }
 
     /**

@@ -4,7 +4,7 @@ Automatic promotional discounts and campaigns for commerce applications.
 
 ## Features
 
-- **Promotion Types** — Percentage off, fixed amount, and Buy X Get Y discounts
+- **Promotion Types** — Percentage off and fixed amount discounts
 - **Automatic Promotions** — Code-free promotions that apply automatically
 - **Promo Codes** — Optional code-based promotions
 - **Usage Limits** — Total usage and per-customer limits
@@ -99,7 +99,6 @@ return [
 |------|-------------|
 | `Percentage` | Percentage discount (e.g., 20% off) |
 | `Fixed` | Fixed amount in cents (e.g., $10 off) |
-| `BuyXGetY` | Buy X items, get Y free |
 
 ## License
 

@@ -41,7 +41,7 @@ keywords:
 
 ## Key surfaces
 - Models: `Promotion`
-- Actions/Services: `Actions/ApplyPromotionToCart`, `Actions/CreatePromotion`, `Actions/DeactivatePromotion`, `Actions/EvaluatePromotionForCart`, `Actions/IssueVouchersFromPromotion`, `Services/PromotionService`, `Support/PromotionPerformanceInsights`
+- Actions/Services: `Actions/CreatePromotion`, `Actions/DeactivatePromotion`, `Actions/IssueVouchersFromPromotion`, `Services/PromotionService`, `Support/PromotionPerformanceInsights`
 - Config `promotions.php`: `database`, `json_column_type`, `tables`, `promotions`, `promotionables`, `defaults`, `currency`, `features`, `owner`, `enabled`
 
 ## Docs map

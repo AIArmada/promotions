@@ -34,11 +34,10 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 ## Main models services or surfaces
 
 - **Model** — `Promotion`
-- **Actions** — `CreatePromotion`, `ApplyPromotionToCart`, `EvaluatePromotionForCart`, `DeactivatePromotion`, `IssueVouchersFromPromotion`
+- **Actions** — `CreatePromotion`, `DeactivatePromotion`, `IssueVouchersFromPromotion`
 - **Events** — `PromotionCreated`, `PromotionApplied`, `PromotionRemoved`, `PromotionDeactivated`
-- **Strategies** — `FixedStrategy`, `PercentageStrategy`, `BuyXGetYStrategy` (resolved via `PromotionStrategyInterface`)
-- **Contracts** — `PromotionStrategyInterface`, `PromotionServiceInterface`
-- **Listeners** — `MarkPromotionAsUsedOnOrderPlaced`, `ReevaluatePromotionsOnCartUpdated`
+- **Contracts** — `PromotionServiceInterface`
+- **Listeners** — `MarkPromotionAsUsedOnOrderPlaced`
 - **Support** — `PromotionPerformanceInsights`
 - **Core surfaces** — promotion targeting evaluation, usage-limit enforcement, code and automatic promotion flows
 - **Docs deep dives** — promotion service and targeting internals live in the companion docs pages for this package
@@ -53,7 +52,7 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 
 ## Highlights
 
-- Discount types: percentage, fixed, buy-x-get-y
+- Discount types: percentage and fixed
 - Automatic promotions (no code) and code promotions
 - Usage limits and per-customer limits
 - Scheduling (`starts_at`, `ends_at`)
@@ -62,8 +61,7 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 - Optional promotion-issued one-time vouchers for recovery or targeted distribution campaigns
 - Owner-aware scoping and write guards
 - Activity logging for core promotion fields
-- Action-based API: `CreatePromotion`, `ApplyPromotionToCart`, `EvaluatePromotionForCart`, `DeactivatePromotion`
-- Strategy pattern: `FixedStrategy`, `PercentageStrategy`, `BuyXGetYStrategy` via `PromotionStrategyInterface`
+- Action-based API: `CreatePromotion`, `DeactivatePromotion`
 - Events for extensibility: `PromotionCreated`, `PromotionApplied`, `PromotionRemoved`, `PromotionDeactivated`
 
 ## Core model fields
@@ -75,7 +73,7 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 | `name` | string | Required |
 | `code` | string nullable | Null means automatic promotion |
 | `description` | text nullable | Optional |
-| `type` | enum string | `percentage`, `fixed`, `buy_x_get_y` |
+| `type` | enum string | `percentage`, `fixed` |
 | `discount_value` | integer | Percent points or minor units |
 | `priority` | integer | Higher runs first |
 | `is_stackable` | boolean | Allow combination with others |
