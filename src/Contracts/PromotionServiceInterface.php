@@ -6,6 +6,7 @@ namespace AIArmada\Promotions\Contracts;
 
 use AIArmada\CommerceSupport\Targeting\TargetingContext;
 use AIArmada\Promotions\Models\Promotion;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
 /**
@@ -19,6 +20,15 @@ interface PromotionServiceInterface
      * @return Collection<int, Promotion>
      */
     public function getApplicablePromotions(TargetingContext $context): Collection;
+
+    /**
+     * Get applicable automatic promotions at a supplied instant.
+     *
+     * Existing pricing callers must continue using the wall-clock method.
+     *
+     * @return Collection<int, Promotion>
+     */
+    public function getApplicablePromotionsAsOf(TargetingContext $context, CarbonImmutable $asOf): Collection;
 
     /**
      * Get the best applicable promotion for the given context.

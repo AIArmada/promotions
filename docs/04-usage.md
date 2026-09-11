@@ -112,6 +112,14 @@ $result = $service->calculateDiscounts($context, $subtotalInCents);
 // ['discount' => int, 'applied' => Collection<Promotion>]
 ```
 
+For historical or as-of reporting, use the additive service method:
+
+```php
+$historical = $service->getApplicablePromotionsAsOf($context, $asOf);
+```
+
+Existing pricing callers should continue using `getApplicablePromotions()` and `calculateDiscounts()` so current wall-clock semantics remain unchanged.
+
 ## Issue one-time vouchers from a promotion
 
 When the vouchers package is installed, promotions can generate one-time vouchers directly.

@@ -24,8 +24,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
+use LogicException;
 use OwenIt\Auditing\Contracts\Auditable;
-use RuntimeException;
 use Spatie\Activitylog\Support\LogOptions;
 use Throwable;
 
@@ -57,6 +57,8 @@ use Throwable;
  */
 class Promotion extends Model implements Auditable
 {
+    private static ?bool $issuedVoucherTrackingSupported = null;
+
     use HasCommerceAudit;
 
     /** @use HasFactory<PromotionFactory> */
@@ -135,7 +137,11 @@ class Promotion extends Model implements Auditable
         $productClass = '\\AIArmada\\Products\\Models\\Product';
 
         if (! class_exists($productClass)) {
-            throw new RuntimeException('Products package is not installed.');
+            return $this->morphedByMany(
+                Model::class,
+                'promotionable',
+                (string) config('promotions.database.tables.promotionables', 'promotionables')
+            )->whereRaw('1 = 0');
         }
 
         return $this->morphedByMany(
@@ -153,7 +159,11 @@ class Promotion extends Model implements Auditable
         $categoryClass = '\\AIArmada\\Products\\Models\\Category';
 
         if (! class_exists($categoryClass)) {
-            throw new RuntimeException('Products package is not installed.');
+            return $this->morphedByMany(
+                Model::class,
+                'promotionable',
+                (string) config('promotions.database.tables.promotionables', 'promotionables')
+            )->whereRaw('1 = 0');
         }
 
         return $this->morphedByMany(
@@ -181,10 +191,14 @@ class Promotion extends Model implements Auditable
 
     public static function supportsIssuedVoucherTracking(): bool
     {
+        if (self::$issuedVoucherTrackingSupported !== null) {
+            return self::$issuedVoucherTrackingSupported;
+        }
+
         $voucherModelClass = self::issuedVoucherModelClass();
 
         if ($voucherModelClass === null) {
-            return false;
+            return self::$issuedVoucherTrackingSupported = false;
         }
 
         try {
@@ -192,9 +206,10 @@ class Promotion extends Model implements Auditable
             $voucher = new $voucherModelClass;
             $table = $voucher->getTable();
 
-            return Schema::hasTable($table) && Schema::hasColumn($table, 'promotion_id');
+            return self::$issuedVoucherTrackingSupported = Schema::hasTable($table)
+                && Schema::hasColumn($table, 'promotion_id');
         } catch (Throwable) {
-            return false;
+            return self::$issuedVoucherTrackingSupported = false;
         }
     }
 
@@ -228,7 +243,20 @@ class Promotion extends Model implements Auditable
      */
     public function scopeActive(Builder $query): Builder
     {
-        $now = CarbonImmutable::now();
+        return $this->scopeActiveAt($query, CarbonImmutable::now());
+    }
+
+    /**
+     * Scope to promotions active at a supplied instant.
+     *
+     * The as-of path is additive; existing callers continue to use the
+     * wall-clock `active()` scope.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeActiveAt(Builder $query, CarbonImmutable $now): Builder
+    {
 
         return $query->where('is_active', true)
             ->where(function (Builder $q) use ($now): void {
@@ -297,11 +325,14 @@ class Promotion extends Model implements Auditable
 
     public function isActive(): bool
     {
+        return $this->isActiveAt(CarbonImmutable::now());
+    }
+
+    public function isActiveAt(CarbonImmutable $now): bool
+    {
         if (! $this->is_active) {
             return false;
         }
-
-        $now = CarbonImmutable::now();
 
         if ($this->starts_at && $this->starts_at > $now) {
             return false;
@@ -342,9 +373,33 @@ class Promotion extends Model implements Auditable
      */
     public function incrementUsage(): self
     {
-        $this->increment('usage_count');
+        if (! $this->tryIncrementUsage()) {
+            throw new LogicException('The promotion usage limit has been reached.');
+        }
 
         return $this;
+    }
+
+    public function tryIncrementUsage(): bool
+    {
+        $query = static::query()
+            ->whereKey($this->getKey())
+            ->where(function (Builder $builder): void {
+                $builder->whereNull('usage_limit')
+                    ->orWhereColumn('usage_count', '<', 'usage_limit');
+            });
+
+        if (config('promotions.features.owner.enabled', false)) {
+            $query->forOwner($this->owner, false);
+        }
+
+        $updated = $query->increment('usage_count');
+
+        if ($updated === 1) {
+            $this->usage_count = (int) $this->usage_count + 1;
+        }
+
+        return $updated === 1;
     }
 
     public function hasRemainingUsage(): bool
@@ -414,6 +469,14 @@ class Promotion extends Model implements Auditable
         });
 
         static::saving(function (Promotion $promotion): void {
+            $promotion->code = $promotion->code === null
+                ? null
+                : mb_strtoupper(mb_trim($promotion->code));
+
+            if ($promotion->code === '') {
+                $promotion->code = null;
+            }
+
             if ($promotion->conditions !== null) {
                 if (! is_array($promotion->conditions)) {
                     throw new InvalidArgumentException('Promotion conditions must be an array or null.');

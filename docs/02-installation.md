@@ -62,6 +62,18 @@ use AIArmada\Promotions\Models\Promotion;
 Promotion::all();
 ```
 
+## Expiry hygiene
+
+The package registers `promotions:deactivate-expired` but does not schedule it
+automatically. Add it to the host application's scheduler, for example:
+
+```php
+Schedule::command('promotions:deactivate-expired')->daily();
+```
+
+The command is safe to run from the application scheduler because promotion
+eligibility still uses its date window at read time.
+
 ## Next Steps
 
 - Configure the package: [Configuration](03-configuration.md)
