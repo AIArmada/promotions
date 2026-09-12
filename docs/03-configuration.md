@@ -54,6 +54,6 @@ $includeGlobal = config('promotions.features.owner.include_global');
 
 ## Evaluation time and usage limits
 
-`PromotionService::getApplicablePromotions()` and the pricing bridge retain wall-clock behavior. The additive `getApplicablePromotionsAsOf()` method is for reports and historical evaluation; it does not change current checkout totals. Per-customer limits are checked against owner-scoped order discount allocations when the Orders package is available. If Orders is not installed, the service logs a skip reason and continues without throwing.
+`PromotionService::getApplicablePromotions()` delegates to the canonical `getApplicablePromotionsAsOf()` with the current instant, so current checkout totals are preserved through the single implementation. Use `getApplicablePromotionsAsOf()` directly for reports and historical evaluation. Per-customer limits are checked against owner-scoped order discount allocations when the Orders package is available. If Orders is not installed, the service logs a skip reason and continues without throwing.
 
 Usage redemption uses an atomic increment-or-reject update. Call `tryIncrementUsage()` when the caller needs a boolean result; `incrementUsage()` throws a `LogicException` when the configured usage limit has already been reached.

@@ -249,8 +249,8 @@ class Promotion extends Model implements Auditable
     /**
      * Scope to promotions active at a supplied instant.
      *
-     * The as-of path is additive; existing callers continue to use the
-     * wall-clock `active()` scope.
+     * This is the canonical activity scope; the wall-clock `active()`
+     * scope delegates to it with the current instant.
      *
      * @param  Builder<static>  $query
      * @return Builder<static>

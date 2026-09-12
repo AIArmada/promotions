@@ -7,6 +7,7 @@ namespace AIArmada\Promotions\Services;
 use AIArmada\CommerceSupport\Support\OwnerContext;
 use AIArmada\CommerceSupport\Targeting\Contracts\TargetingEngineInterface;
 use AIArmada\CommerceSupport\Targeting\TargetingContext;
+use AIArmada\Orders\Models\Order;
 use AIArmada\Promotions\Contracts\PromotionServiceInterface;
 use AIArmada\Promotions\Models\Promotion;
 use Carbon\CarbonImmutable;
@@ -31,12 +32,11 @@ final class PromotionService implements PromotionServiceInterface
      */
     public function getApplicablePromotions(TargetingContext $context): Collection
     {
-        return $this->applicablePromotions($context);
+        return $this->getApplicablePromotionsAsOf($context, CarbonImmutable::now());
     }
 
     /**
-     * Evaluate automatic promotions at a supplied instant without changing
-     * the wall-clock behavior used by existing pricing callers.
+     * Evaluate automatic promotions at a supplied instant.
      *
      * @return Collection<int, Promotion>
      */
@@ -172,14 +172,10 @@ final class PromotionService implements PromotionServiceInterface
     /**
      * @return Collection<int, Promotion>
      */
-    private function applicablePromotions(TargetingContext $context, ?CarbonImmutable $asOf = null): Collection
+    private function applicablePromotions(TargetingContext $context, CarbonImmutable $asOf): Collection
     {
         $query = Promotion::query()
-            ->when(
-                $asOf === null,
-                fn (Builder $builder): Builder => $builder->active(),
-                fn (Builder $builder): Builder => $builder->activeAt($asOf),
-            )
+            ->activeAt($asOf)
             ->automatic()
             ->forOwner()
             ->when(
@@ -226,7 +222,7 @@ final class PromotionService implements PromotionServiceInterface
             return true;
         }
 
-        /** @phpstan-var class-string<\AIArmada\Orders\Models\Order> $orderClass */
+        /** @phpstan-var class-string<Order> $orderClass */
         $orderClass = 'AIArmada\\Orders\\Models\\Order';
 
         if (! class_exists($orderClass)) {

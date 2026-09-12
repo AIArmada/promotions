@@ -24,7 +24,8 @@ interface PromotionServiceInterface
     /**
      * Get applicable automatic promotions at a supplied instant.
      *
-     * Existing pricing callers must continue using the wall-clock method.
+     * This is the canonical evaluation core; the wall-clock method
+     * delegates to it with the current instant.
      *
      * @return Collection<int, Promotion>
      */
