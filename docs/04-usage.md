@@ -80,6 +80,21 @@ $promotion->hasRemainingUsage();
 $promotion->incrementUsage();
 ```
 
+## Limits, codes, and evaluation cost
+
+- `per_customer_limit` is checked in `matchesContext()` via owner-scoped order history (`forOwner(OwnerContext::resolve(), false)`). When `aiarmada/orders` is missing or unreadable, the check logs at `debug` level and allows the promotion.
+- Usage increments are atomic: `tryIncrementUsage()` runs a single `whereColumn('usage_count', '<', 'usage_limit')->increment()` guarded by `forOwner($this->owner, false)`; `incrementUsage()` throws on exhaustion.
+- Codes are normalized to trimmed-uppercase on save and looked up exactly (`where('code', mb_strtoupper(mb_trim($code)))`). Blank input resolves to `null` (automatic promotion).
+- Evaluation applies cheap SQL pre-filters (`activeAt`, `min_purchase_amount`, `min_quantity`) then `chunkById(100)` with full `matchesContextAt()` per row.
+- When `aiarmada/products` is absent, `products()`/`categories()` return an empty (`whereRaw('1 = 0')`) relation rather than throwing.
+
+```php
+use AIArmada\Promotions\Models\Promotion;
+
+$promotion->tryIncrementUsage(); // bool; false when usage_limit reached
+$found = $service->findApplicableCodePromotion('  welcome10 ', $context);
+```
+
 ## Owner-aware querying
 
 ```php
