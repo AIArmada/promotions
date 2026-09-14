@@ -114,12 +114,9 @@ final class PromotionPerformanceInsights
     private function promotions(): Builder
     {
         /** @var Builder<Promotion> $query */
-        $query = Promotion::query();
+        $query = Promotion::query()->forOwner();
 
-        /** @var Builder<Promotion> $scoped */
-        $scoped = $query;
-
-        return $scoped;
+        return $query;
     }
 
     /**
@@ -200,10 +197,15 @@ final class PromotionPerformanceInsights
             return;
         }
 
-        $totalOrders = Order::query()->count();
-        $orders = Order::query()
+        $orderQuery = Order::query()->forOwner();
+
+        $totalOrders = (clone $orderQuery)->count();
+
+        // Stream instead of hydrating every order: the aggregate loop below
+        // only needs a narrow column set.
+        $orders = (clone $orderQuery)
             ->select(['id', 'grand_total', 'currency', 'metadata'])
-            ->get();
+            ->cursor();
 
         $influencedOrders = 0;
         $codeInfluencedOrders = 0;

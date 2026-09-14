@@ -9,6 +9,7 @@ use AIArmada\Promotions\Console\Commands\DeactivateExpiredPromotionsCommand;
 use AIArmada\Promotions\Contracts\PromotionServiceInterface;
 use AIArmada\Promotions\Listeners\MarkPromotionAsUsedOnOrderPlaced;
 use AIArmada\Promotions\Services\PromotionService;
+use AIArmada\Promotions\Support\IssuedVoucherTrackingState;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -19,6 +20,7 @@ class PromotionsServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__ . '/../config/promotions.php', 'promotions');
 
         $this->app->singleton(PromotionServiceInterface::class, PromotionService::class);
+        $this->app->scoped(IssuedVoucherTrackingState::class);
     }
 
     public function boot(): void

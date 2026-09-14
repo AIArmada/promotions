@@ -72,6 +72,8 @@ final class MarkPromotionAsUsedOnOrderPlaced
             return;
         }
 
+        $countedPromotionIds = $this->countedPromotionIds($order);
+
         foreach ($allocations as $allocation) {
             if (($allocation['provider_key'] ?? '') !== 'promotions') {
                 Log::debug('Promotion usage skipped: allocation belongs to another provider.', [
@@ -87,6 +89,11 @@ final class MarkPromotionAsUsedOnOrderPlaced
             if ($promotionId === null) {
                 $this->skip('promotion allocation has no promotion id', ['order_id' => $order->getKey()]);
 
+                continue;
+            }
+
+            // Redelivered OrderPaid events must not double-count usage.
+            if (in_array((string) $promotionId, $countedPromotionIds, true)) {
                 continue;
             }
 
@@ -110,7 +117,71 @@ final class MarkPromotionAsUsedOnOrderPlaced
                     'order_id' => $order->getKey(),
                     'promotion_id' => $promotionId,
                 ]);
+
+                continue;
             }
+
+            $countedPromotionIds[] = (string) $promotionId;
+        }
+
+        $this->persistCountedPromotionIds($order, $owner, $countedPromotionIds);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function countedPromotionIds(mixed $order): array
+    {
+        $metadata = is_callable([$order, 'getAttribute'])
+            ? $order->getAttribute('metadata')
+            : null;
+
+        if (! is_array($metadata)) {
+            return [];
+        }
+
+        $counted = $metadata['promotions_usage_counted'] ?? [];
+
+        if (! is_array($counted)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map(static fn (mixed $id): string => (string) $id, $counted),
+            static fn (string $id): bool => $id !== '',
+        ));
+    }
+
+    /**
+     * @param  list<string>  $countedPromotionIds
+     */
+    private function persistCountedPromotionIds(mixed $order, mixed $owner, array $countedPromotionIds): void
+    {
+        if ($countedPromotionIds === []) {
+            return;
+        }
+
+        if (! is_object($order) || ! method_exists($order, 'getAttribute') || ! $order->exists) {
+            return;
+        }
+
+        $metadata = $order->getAttribute('metadata');
+
+        if (! is_array($metadata)) {
+            $metadata = [];
+        }
+
+        $metadata['promotions_usage_counted'] = $countedPromotionIds;
+
+        try {
+            OwnerContext::withOwner($owner, static function () use ($order, $metadata): void {
+                $order->forceFill(['metadata' => $metadata])->saveQuietly();
+            });
+        } catch (Throwable $exception) {
+            $this->skip('promotion usage stamp could not be persisted', [
+                'order_id' => $order->getKey(),
+                'reason' => $exception->getMessage(),
+            ]);
         }
     }
 

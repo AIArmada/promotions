@@ -11,6 +11,7 @@ use AIArmada\Orders\Models\Order;
 use AIArmada\Promotions\Contracts\PromotionServiceInterface;
 use AIArmada\Promotions\Models\Promotion;
 use Carbon\CarbonImmutable;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -142,13 +143,13 @@ final class PromotionService implements PromotionServiceInterface
         return $this->matchesContextAt($promotion, $context, null);
     }
 
-    private function matchesContextAt(Promotion $promotion, TargetingContext $context, ?CarbonImmutable $asOf): bool
+    private function matchesContextAt(Promotion $promotion, TargetingContext $context, ?CarbonImmutable $asOf, ?Closure $usageCountsLoader = null): bool
     {
         if ($asOf === null ? ! $promotion->isActive() : ! $promotion->isActiveAt($asOf)) {
             return false;
         }
 
-        if (! $this->withinCustomerLimit($promotion, $context, $asOf)) {
+        if (! $this->withinCustomerLimit($promotion, $context, $asOf, $usageCountsLoader)) {
             return false;
         }
 
@@ -195,9 +196,26 @@ final class PromotionService implements PromotionServiceInterface
 
         $applicable = collect();
 
-        $query->chunkById(100, function (Collection $promotions) use (&$applicable, $context, $asOf): void {
+        // Scan the customer's order history at most once per evaluation and
+        // share the resulting per-promotion usage map across every candidate,
+        // instead of re-reading the full history inside the promotion loop.
+        // The scan stays lazy so limit-free evaluations issue no order query.
+        $usageCounts = null;
+        $usageCountsLoaded = false;
+
+        /** @var Closure(): ?array<string, int> $usageCountsLoader */
+        $usageCountsLoader = function () use ($context, $asOf, &$usageCounts, &$usageCountsLoaded): ?array {
+            if (! $usageCountsLoaded) {
+                $usageCountsLoaded = true;
+                $usageCounts = $this->customerPromotionUsageCounts($context, $asOf);
+            }
+
+            return $usageCounts;
+        };
+
+        $query->chunkById(100, function (Collection $promotions) use (&$applicable, $context, $asOf, $usageCountsLoader): void {
             foreach ($promotions as $promotion) {
-                if ($this->matchesContextAt($promotion, $context, $asOf)) {
+                if ($this->matchesContextAt($promotion, $context, $asOf, $usageCountsLoader)) {
                     $applicable->push($promotion);
                 }
             }
@@ -206,31 +224,51 @@ final class PromotionService implements PromotionServiceInterface
         return $applicable->sortByDesc('priority')->values();
     }
 
-    private function withinCustomerLimit(Promotion $promotion, TargetingContext $context, ?CarbonImmutable $asOf): bool
+    /**
+     * @param  Closure(): ?array<string, int>  $usageCountsLoader
+     */
+    private function withinCustomerLimit(Promotion $promotion, TargetingContext $context, ?CarbonImmutable $asOf, ?Closure $usageCountsLoader = null): bool
     {
         if ($promotion->per_customer_limit === null) {
             return true;
         }
 
+        $usageCounts = $usageCountsLoader !== null
+            ? $usageCountsLoader()
+            : $this->customerPromotionUsageCounts($context, $asOf);
+
+        // Fail closed: when a limit is configured but usage cannot be
+        // determined (guest, missing history, read error), the promotion
+        // does not apply.
+        if ($usageCounts === null) {
+            return false;
+        }
+
+        return ($usageCounts[(string) $promotion->getKey()] ?? 0) < $promotion->per_customer_limit;
+    }
+
+    /**
+     * Count prior uses of each promotion for the context customer.
+     *
+     * @return array<string, int>|null Null when usage cannot be determined.
+     */
+    private function customerPromotionUsageCounts(TargetingContext $context, ?CarbonImmutable $asOf): ?array
+    {
         $customerId = $context->metadata['customer_id'] ?? $context->user?->getKey();
 
         if ($customerId === null || $customerId === '') {
-            Log::debug('Promotion per-customer limit skipped: no customer identifier.', [
-                'promotion_id' => $promotion->getKey(),
-            ]);
+            Log::debug('Promotion per-customer limit denied: no customer identifier.');
 
-            return true;
+            return null;
         }
 
         /** @phpstan-var class-string<Order> $orderClass */
         $orderClass = 'AIArmada\\Orders\\Models\\Order';
 
         if (! class_exists($orderClass)) {
-            Log::debug('Promotion per-customer limit skipped: orders package is unavailable.', [
-                'promotion_id' => $promotion->getKey(),
-            ]);
+            Log::debug('Promotion per-customer limit denied: orders package is unavailable.');
 
-            return true;
+            return null;
         }
 
         try {
@@ -246,37 +284,33 @@ final class PromotionService implements PromotionServiceInterface
                 $orders->where('created_at', '<=', $asOf);
             }
 
-            $count = 0;
-            $limit = $promotion->per_customer_limit;
-            $orders->chunkById(100, function (Collection $orders) use (&$count, $limit, $promotion): bool {
-                foreach ($orders as $order) {
-                    if ($this->orderContainsPromotion($order->getAttribute('metadata'), (string) $promotion->getKey())) {
-                        $count++;
+            $counts = [];
 
-                        if ($count >= $limit) {
-                            return false;
-                        }
+            $orders->chunkById(100, function (Collection $orders) use (&$counts): void {
+                foreach ($orders as $order) {
+                    foreach ($this->promotionIdsInMetadata($order->getAttribute('metadata')) as $promotionId) {
+                        $counts[$promotionId] = ($counts[$promotionId] ?? 0) + 1;
                     }
                 }
-
-                return true;
             });
 
-            return $count < $limit;
+            return $counts;
         } catch (Throwable $exception) {
-            Log::debug('Promotion per-customer limit skipped: order history could not be read.', [
-                'promotion_id' => $promotion->getKey(),
+            Log::debug('Promotion per-customer limit denied: order history could not be read.', [
                 'reason' => $exception->getMessage(),
             ]);
 
-            return true;
+            return null;
         }
     }
 
-    private function orderContainsPromotion(mixed $metadata, string $promotionId): bool
+    /**
+     * @return list<string>
+     */
+    private function promotionIdsInMetadata(mixed $metadata): array
     {
         if (! is_array($metadata)) {
-            return false;
+            return [];
         }
 
         $allocations = $metadata['discount_data']['allocations']
@@ -284,16 +318,23 @@ final class PromotionService implements PromotionServiceInterface
             ?? [];
 
         if (! is_array($allocations)) {
-            return false;
+            return [];
         }
 
+        $promotionIds = [];
+
         foreach ($allocations as $allocation) {
-            if (($allocation['provider_key'] ?? null) === 'promotions'
-                && (string) ($allocation['meta']['promotion_id'] ?? '') === $promotionId) {
-                return true;
+            if (($allocation['provider_key'] ?? null) !== 'promotions') {
+                continue;
+            }
+
+            $promotionId = (string) ($allocation['meta']['promotion_id'] ?? '');
+
+            if ($promotionId !== '') {
+                $promotionIds[] = $promotionId;
             }
         }
 
-        return false;
+        return $promotionIds;
     }
 }

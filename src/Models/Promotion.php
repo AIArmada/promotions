@@ -12,6 +12,7 @@ use AIArmada\CommerceSupport\Traits\HasOwner;
 use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
 use AIArmada\Promotions\Database\Factories\PromotionFactory;
 use AIArmada\Promotions\Enums\PromotionType;
+use AIArmada\Promotions\Support\IssuedVoucherTrackingState;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
@@ -57,8 +58,6 @@ use Throwable;
  */
 class Promotion extends Model implements Auditable
 {
-    private static ?bool $issuedVoucherTrackingSupported = null;
-
     use HasCommerceAudit;
 
     /** @use HasFactory<PromotionFactory> */
@@ -191,14 +190,21 @@ class Promotion extends Model implements Auditable
 
     public static function supportsIssuedVoucherTracking(): bool
     {
-        if (self::$issuedVoucherTrackingSupported !== null) {
-            return self::$issuedVoucherTrackingSupported;
+        if (! app()->bound(IssuedVoucherTrackingState::class)) {
+            return self::detectIssuedVoucherTracking();
         }
 
+        $state = app(IssuedVoucherTrackingState::class);
+
+        return $state->supported ??= self::detectIssuedVoucherTracking();
+    }
+
+    private static function detectIssuedVoucherTracking(): bool
+    {
         $voucherModelClass = self::issuedVoucherModelClass();
 
         if ($voucherModelClass === null) {
-            return self::$issuedVoucherTrackingSupported = false;
+            return false;
         }
 
         try {
@@ -206,10 +212,10 @@ class Promotion extends Model implements Auditable
             $voucher = new $voucherModelClass;
             $table = $voucher->getTable();
 
-            return self::$issuedVoucherTrackingSupported = Schema::hasTable($table)
+            return Schema::hasTable($table)
                 && Schema::hasColumn($table, 'promotion_id');
         } catch (Throwable) {
-            return self::$issuedVoucherTrackingSupported = false;
+            return false;
         }
     }
 
@@ -359,11 +365,16 @@ class Promotion extends Model implements Auditable
 
     /**
      * Calculate the discount amount for a given price.
+     *
+     * Percentage math stays in integers (half-up) so results match the
+     * voucher minor-unit rounding instead of drifting by a cent, and both
+     * branches clamp to the price so an over-100 value can never discount
+     * more than the line is worth.
      */
     public function calculateDiscount(int $priceInCents): int
     {
         return match ($this->type) {
-            PromotionType::Percentage => (int) round($priceInCents * ($this->discount_value / 100)),
+            PromotionType::Percentage => min(intdiv($priceInCents * $this->discount_value + 50, 100), $priceInCents),
             PromotionType::Fixed => min($this->discount_value, $priceInCents),
         };
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AIArmada\Promotions\Console\Commands;
 
+use AIArmada\CommerceSupport\Support\OwnerBatchRunner;
 use AIArmada\Promotions\Actions\DeactivatePromotion;
 use AIArmada\Promotions\Models\Promotion;
 use Carbon\CarbonImmutable;
@@ -18,33 +19,46 @@ final class DeactivateExpiredPromotionsCommand extends Command
 
     public function handle(DeactivatePromotion $deactivatePromotion): int
     {
-        $now = CarbonImmutable::now();
+        $dryRun = (bool) $this->option('dry-run');
 
-        $expired = Promotion::query()
-            ->where('is_active', true)
-            ->where('ends_at', '<=', $now)
-            ->get();
+        $runner = new OwnerBatchRunner(Promotion::class, [
+            'enabled' => 'promotions.features.owner.enabled',
+            'include_global' => 'promotions.features.owner.include_global',
+        ]);
 
-        if ($expired->isEmpty()) {
+        $deactivated = 0;
+
+        // Iterate owners explicitly so each deactivation runs inside the
+        // owning scope (the model write guard rejects cross-owner updates),
+        // and chunk so large promotion tables never load fully into memory.
+        $runner->forEach(function () use ($dryRun, $deactivatePromotion, &$deactivated): void {
+            Promotion::query()
+                ->forOwner()
+                ->where('is_active', true)
+                ->where('ends_at', '<=', CarbonImmutable::now())
+                ->chunkById(100, function ($expired) use ($dryRun, $deactivatePromotion, &$deactivated): void {
+                    foreach ($expired as $promotion) {
+                        $this->line(" - [{$promotion->id}] {$promotion->name}");
+
+                        if (! $dryRun) {
+                            $deactivatePromotion->handle($promotion);
+                        }
+
+                        $deactivated++;
+                    }
+                });
+        });
+
+        if ($deactivated === 0) {
             $this->info('No expired promotions found.');
 
             return self::SUCCESS;
         }
 
-        $this->info("Found {$expired->count()} expired promotion(s).");
-
-        foreach ($expired as $promotion) {
-            $this->line(" - [{$promotion->id}] {$promotion->name}");
-
-            if (! (bool) $this->option('dry-run')) {
-                $deactivatePromotion->handle($promotion);
-            }
-        }
-
-        if ((bool) $this->option('dry-run')) {
-            $this->warn('Dry-run mode: no promotions were actually deactivated.');
+        if ($dryRun) {
+            $this->warn("Dry-run mode: {$deactivated} expired promotion(s) found, none deactivated.");
         } else {
-            $this->info("Deactivated {$expired->count()} expired promotion(s).");
+            $this->info("Deactivated {$deactivated} expired promotion(s).");
         }
 
         return self::SUCCESS;

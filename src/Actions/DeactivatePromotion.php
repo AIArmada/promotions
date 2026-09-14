@@ -4,19 +4,29 @@ declare(strict_types=1);
 
 namespace AIArmada\Promotions\Actions;
 
+use AIArmada\CommerceSupport\Support\OwnerWriteGuard;
 use AIArmada\Promotions\Events\PromotionDeactivated;
 use AIArmada\Promotions\Models\Promotion;
+use Carbon\CarbonImmutable;
 
 final class DeactivatePromotion
 {
     public function handle(Promotion $promotion): Promotion
     {
-        $promotion->update(['is_active' => false]);
+        if (config('promotions.features.owner.enabled', false)) {
+            /** @var Promotion $promotion */
+            $promotion = OwnerWriteGuard::findOrFailForOwner(Promotion::class, $promotion->getKey());
+        }
 
-        $fresh = $promotion->fresh();
+        $promotion->update([
+            'is_active' => false,
+            'deactivated_at' => CarbonImmutable::now(),
+        ]);
 
-        PromotionDeactivated::dispatch($fresh);
+        $resolved = $promotion->fresh() ?? $promotion;
 
-        return $fresh;
+        PromotionDeactivated::dispatch($resolved);
+
+        return $resolved;
     }
 }

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->nullableMorphs('owner');
             $table->string('name');
-            $table->string('code')->nullable()->unique();
+            $table->string('code')->nullable();
             $table->text('description')->nullable();
 
             $table->string('type')->default('percentage');
@@ -43,6 +43,7 @@ return new class extends Migration
 
             $table->index(['is_active', 'priority']);
             $table->index(['starts_at', 'ends_at']);
+            $table->unique(['owner_type', 'owner_id', 'code'], 'promotions_owner_code_unique');
         });
 
         Schema::create((string) config('promotions.database.tables.promotionables', 'promotionables'), function (Blueprint $table): void {
@@ -50,6 +51,7 @@ return new class extends Migration
             $table->uuidMorphs('promotionable');
 
             $table->primary(['promotion_id', 'promotionable_id', 'promotionable_type']);
+            $table->index(['promotionable_type', 'promotionable_id'], 'promotionables_reverse_index');
         });
     }
 
