@@ -54,10 +54,4 @@ return new class extends Migration
             $table->index(['promotionable_type', 'promotionable_id'], 'promotionables_reverse_index');
         });
     }
-
-    public function down(): void
-    {
-        Schema::dropIfExists((string) config('promotions.database.tables.promotionables', 'promotionables'));
-        Schema::dropIfExists((string) config('promotions.database.tables.promotions', 'promotions'));
-    }
 };
