@@ -78,6 +78,7 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 | `priority` | integer | Higher runs first |
 | `is_stackable` | boolean | Allow combination with others |
 | `is_active` | boolean | Top-level activation toggle |
+| `is_currently_active` | boolean, derived | `is_active` and not past `ends_at`. Read this for display; there is no sweep to correct a stale column |
 | `usage_limit` | integer nullable | Overall cap |
 | `usage_count` | integer | Current usage counter |
 | `per_customer_limit` | integer nullable | Per-customer cap |

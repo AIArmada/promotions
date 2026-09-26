@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace AIArmada\Promotions;
 
 use AIArmada\Orders\Events\OrderPaid;
-use AIArmada\Promotions\Console\Commands\DeactivateExpiredPromotionsCommand;
 use AIArmada\Promotions\Contracts\PromotionServiceInterface;
 use AIArmada\Promotions\Listeners\MarkPromotionAsUsedOnOrderPlaced;
 use AIArmada\Promotions\Services\PromotionService;
@@ -28,7 +27,6 @@ class PromotionsServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->publishConfig();
             $this->publishMigrations();
-            $this->registerCommands();
         }
 
         $this->registerEventListeners();
@@ -55,12 +53,5 @@ class PromotionsServiceProvider extends ServiceProvider
         ], 'promotions-migrations');
 
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
-    }
-
-    private function registerCommands(): void
-    {
-        $this->commands([
-            DeactivateExpiredPromotionsCommand::class,
-        ]);
     }
 }
