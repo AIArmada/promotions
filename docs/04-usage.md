@@ -12,9 +12,8 @@ These Action classes are the recommended entry points for promotion operations.
 use AIArmada\Promotions\Actions\CreatePromotion;
 use AIArmada\Promotions\Actions\DeactivatePromotion;
 
-// Create a promotion — CreatePromotion/DeactivatePromotion expose handle(),
-// so resolve them from the container rather than calling ::run()
-$promotion = app(CreatePromotion::class)->handle([
+// Create a promotion
+$promotion = CreatePromotion::run([
     'name' => 'Summer Sale',
     'type' => 'percentage',
     'discount_value' => 20,
@@ -25,7 +24,7 @@ $promotion = app(CreatePromotion::class)->handle([
 $discountInCents = $promotion->calculateDiscount($subtotalInCents);
 
 // Deactivate a promotion
-app(DeactivatePromotion::class)->handle($promotion);
+DeactivatePromotion::run($promotion);
 ```
 
 See `docs/05-promotion-service.md` for the service API.
@@ -71,38 +70,6 @@ $singleCode = Promotion::query()
     ->where('code', 'WELCOME10')
     ->first();
 ```
-
-`active()` is a wall-clock alias for `activeAt(now)`. There are three activity scopes, and they
-are not interchangeable:
-
-| Scope | Checks | Use for |
-|---|---|---|
-| `activeAt($now)` | `is_active` + `starts_at` + `ends_at` + usage limit | The canonical scope. Anything that decides whether a promotion may apply |
-| `active()` | same, at `CarbonImmutable::now()` | Wall-clock convenience alias |
-| `currentlyActive($now = null)` | `is_active` + `ends_at` only | Dashboards and reporting |
-
-```php
-use Carbon\CarbonImmutable;
-
-Promotion::query()->active()->get();                                  // == activeAt(now)
-Promotion::query()->activeAt(CarbonImmutable::parse('2026-01-01'))->get();
-Promotion::query()->currentlyActive()->get();                         // narrower
-Promotion::query()->currentlyActive(CarbonImmutable::parse('2026-01-01'))->get();
-
-$promotion->is_currently_active;                                      // bool accessor
-$promotion->isActiveAt(CarbonImmutable::now());                       // per-instance check
-```
-
-`currentlyActive()` is deliberately **narrower** than `activeAt()`: it skips the `starts_at`
-window and the usage-limit check, because a promotion sitting at its usage cap is still a
-running promotion from an operator's point of view. Do not use it to decide whether a discount
-applies — use `activeAt()`.
-
-> **info**
-> There is no scheduled sweep rewriting a stale `status` column, so a promotion whose `ends_at`
-> has passed can still read as active in the raw column. `currentlyActive()` and
-> `is_currently_active` derive the truth from the date, which is why the Filament resource
-> binds its Active column and filter to `is_currently_active` rather than `is_active`.
 
 ## Discounts
 
@@ -208,28 +175,4 @@ Promotion codes are unique within an owner scope (`owner_type`, `owner_id`, `cod
 
 ## Deactivation bookkeeping
 
-`DeactivatePromotion` stamps `deactivated_at` alongside `is_active = false` and
-dispatches `PromotionDeactivated`. It is invoked from the Filament edit page's
-Deactivate action, which is visible whenever `is_currently_active` is false —
-so an ended promotion can still be retired explicitly. There is no expiry sweep
-command; promotion eligibility and admin display both derive from the date.
-
-> **info**
-> The package registers no listener for `PromotionDeactivated`. It fires only when something
-> calls the action — in practice the Filament Deactivate button. A promotion that simply passes
-> its `ends_at` is never transitioned, which is why `currentlyActive()` and
-> `is_currently_active` exist as the read-side answer.
-
-To deactivate in bulk, iterate inside an explicit owner scope:
-
-```php
-use AIArmada\Promotions\Actions\DeactivatePromotion;
-use AIArmada\Promotions\Models\Promotion;
-
-Promotion::query()
-    ->currentlyActive()
-    ->whereNotNull('ends_at')
-    ->where('ends_at', '<=', now())
-    ->get()
-    ->each(fn (Promotion $promotion) => app(DeactivatePromotion::class)->handle($promotion));
-```
+`DeactivatePromotion` stamps `deactivated_at` alongside `is_active = false`. The `promotions:deactivate-expired` command iterates owners explicitly and deactivates in chunks, so scheduled runs stay inside each owning scope.

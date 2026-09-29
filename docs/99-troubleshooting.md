@@ -28,8 +28,8 @@ Inspect current owner settings:
 
 ```php
 dump([
-    'enabled' => config('promotions.features.owner.enabled'),
-    'include_global' => config('promotions.features.owner.include_global'),
+    'enabled' => config('promotions.owner.enabled'),
+    'include_global' => config('promotions.owner.include_global'),
 ]);
 ```
 

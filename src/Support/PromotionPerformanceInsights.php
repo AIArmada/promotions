@@ -66,13 +66,13 @@ final class PromotionPerformanceInsights
 
         return array_merge([
             'total_promotions' => (clone $baseQuery)->count(),
-            'active_promotions' => (clone $baseQuery)->currentlyActive()->count(),
+            'active_promotions' => (clone $baseQuery)->where('is_active', true)->count(),
             'code_promotions' => (clone $baseQuery)->whereNotNull('code')->count(),
             'automatic_promotions' => (clone $baseQuery)->whereNull('code')->count(),
             'total_redemptions' => $this->sumUsageCount(clone $baseQuery),
             'code_redemptions' => $this->sumUsageCount((clone $baseQuery)->whereNotNull('code')),
             'automatic_redemptions' => $this->sumUsageCount((clone $baseQuery)->whereNull('code')),
-            'active_redemptions' => $this->sumUsageCount((clone $baseQuery)->currentlyActive()),
+            'active_redemptions' => $this->sumUsageCount((clone $baseQuery)->where('is_active', true)),
         ], $this->issuedVoucherOverview(clone $baseQuery), $this->orderOverview());
     }
 

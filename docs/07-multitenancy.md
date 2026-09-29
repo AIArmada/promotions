@@ -8,21 +8,13 @@ Promotions are owner-aware via `commerce-support`.
 
 ## Default posture
 
-Owner mode is **off by default** and, unlike most packages, has no env override — `enabled` is
-hardcoded to `false` in `config/promotions.php`:
-
 ```php
-'features' => [
-    'owner' => [
-        'enabled' => false,
-        'include_global' => false,
-        'auto_assign_on_create' => true,
-    ],
+'owner' => [
+    'enabled' => false,
+    'include_global' => false,
+    'auto_assign_on_create' => true,
 ],
 ```
-
-Set `'enabled' => true` in `config/promotions.php` (or publish the config and edit it) to turn
-it on. The package's only env var is `PROMOTIONS_JSON_COLUMN_TYPE`.
 
 ## Owner columns
 
@@ -43,16 +35,7 @@ $table->nullableMorphs('owner');
 ```php
 $owned = Promotion::query()->forOwner($tenant)->get();
 $ownedAndGlobal = Promotion::query()->forOwner($tenant, includeGlobal: true)->get();
-
-// Global-only rows
-$platformPromotions = Promotion::query()->globalOnly()->get();
-
-// Cross-tenant read (privileged)
-$everything = Promotion::query()->withoutOwnerScope()->get();
 ```
-
-`owner = null` means global-only, never "all owners" — global rows appear in an owner-scoped
-query only when `includeGlobal: true` is passed.
 
 For global-only operations, enter explicit global context:
 
@@ -66,7 +49,4 @@ $global = OwnerContext::withOwner(null, fn () =>
 
 ## Filament integration
 
-`filament-promotions` scopes list/query surfaces through
-`AIArmada\CommerceSupport\Support\Filament\OwnerUiScope::apply(parent::getEloquentQuery(), includeGlobal: false)`
-in `PromotionResource::getEloquentQuery()`, and its bulk actions re-resolve the promotion with
-`OwnerWriteGuard::findOrFailForOwner()` before issuing vouchers.
+`filament-promotions` scopes list/query surfaces through the `forOwner()` scope provided by `HasOwner` and re-checks destructive actions against the current owner.

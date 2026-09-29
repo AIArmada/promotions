@@ -64,17 +64,15 @@ Promotion::all();
 
 ## Expiry hygiene
 
-No scheduling is required. Promotion eligibility is derived: `scopeActiveAt()`
-(the canonical scope) and `isActiveAt()` both apply the date window at read
-time, so a promotion that has ended stops discounting regardless of its stored
-`is_active` flag. There is no expiry sweep command.
+The package registers `promotions:deactivate-expired` but does not schedule it
+automatically. Add it to the host application's scheduler, for example:
 
-For dashboards and admin display, `scopeCurrentlyActive()` and
-the `is_currently_active` attribute report the narrower "an operator still considers this
-running" view — enabled and not past `ends_at`. Unlike the canonical scope they
-ignore the usage limit, because a promotion at its cap is still a running
-promotion for reporting. These back the Filament nav badge, the Active column,
-and `PromotionPerformanceInsights`.
+```php
+Schedule::command('promotions:deactivate-expired')->daily();
+```
+
+The command is safe to run from the application scheduler because promotion
+eligibility still uses its date window at read time.
 
 ## Next Steps
 

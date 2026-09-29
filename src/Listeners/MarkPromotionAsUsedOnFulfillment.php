@@ -8,14 +8,17 @@ use AIArmada\Checkout\Models\CheckoutSession;
 use AIArmada\CommerceSupport\Support\OwnerContext;
 use AIArmada\CommerceSupport\Support\OwnerScope;
 use AIArmada\CommerceSupport\Support\OwnerTuple\OwnerTupleParser;
-use AIArmada\Orders\Events\OrderPaid;
+use AIArmada\Orders\Events\OrderFulfillmentRequired;
+use AIArmada\Orders\Models\Order;
 use AIArmada\Promotions\Models\Promotion;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Throwable;
 
-final class MarkPromotionAsUsedOnOrderPlaced
+final class MarkPromotionAsUsedOnFulfillment
 {
-    public function handle(OrderPaid $event): void
+    public function handle(OrderFulfillmentRequired $event): void
     {
         $order = $event->order;
         $sessionId = $this->resolveSessionId($order);
@@ -42,7 +45,7 @@ final class MarkPromotionAsUsedOnOrderPlaced
 
         if ((string) $session->getAttribute('owner_type') !== (string) $event->owner_type
             || (string) $session->getAttribute('owner_id') !== (string) $event->owner_id) {
-            $this->skip('checkout session owner tuple does not match the paid order', [
+            $this->skip('checkout session owner tuple does not match the order', [
                 'order_id' => $order->getKey(),
                 'session_id' => $sessionId,
             ]);
@@ -64,7 +67,7 @@ final class MarkPromotionAsUsedOnOrderPlaced
         try {
             $owner = OwnerTupleParser::fromTypeAndId($event->owner_type, $event->owner_id)->toOwnerModel();
         } catch (Throwable $exception) {
-            $this->skip('paid order owner tuple is malformed', [
+            $this->skip('order owner tuple is malformed', [
                 'order_id' => $order->getKey(),
                 'reason' => $exception->getMessage(),
             ]);
@@ -72,59 +75,78 @@ final class MarkPromotionAsUsedOnOrderPlaced
             return;
         }
 
-        $countedPromotionIds = $this->countedPromotionIds($order);
+        // The usage increments and the deduplication stamp commit
+        // atomically, under the order lock: a crash between them stays
+        // retryable without double-counting, and overlapping deliveries
+        // serialize on the order row. The order lookup is unscoped by a
+        // known id because this listener must work without ambient scope.
+        DB::transaction(function () use ($order, $allocations, $owner): void {
+            $lockedOrder = Order::query()
+                ->withoutGlobalScope(OwnerScope::class)
+                ->whereKey($order->getKey())
+                ->lockForUpdate()
+                ->first();
 
-        foreach ($allocations as $allocation) {
-            if (($allocation['provider_key'] ?? '') !== 'promotions') {
-                Log::debug('Promotion usage skipped: allocation belongs to another provider.', [
-                    'order_id' => $order->getKey(),
-                    'provider_key' => $allocation['provider_key'] ?? null,
-                ]);
+            if ($lockedOrder === null) {
+                $this->skip('order no longer exists', ['order_id' => $order->getKey()]);
 
-                continue;
+                return;
             }
 
-            $promotionId = $allocation['meta']['promotion_id'] ?? null;
+            $countedPromotionIds = $this->countedPromotionIds($lockedOrder);
 
-            if ($promotionId === null) {
-                $this->skip('promotion allocation has no promotion id', ['order_id' => $order->getKey()]);
+            foreach ($allocations as $allocation) {
+                if (($allocation['provider_key'] ?? '') !== 'promotions') {
+                    Log::debug('Promotion usage skipped: allocation belongs to another provider.', [
+                        'order_id' => $lockedOrder->getKey(),
+                        'provider_key' => $allocation['provider_key'] ?? null,
+                    ]);
 
-                continue;
+                    continue;
+                }
+
+                $promotionId = $allocation['meta']['promotion_id'] ?? null;
+
+                if ($promotionId === null) {
+                    $this->skip('promotion allocation has no promotion id', ['order_id' => $lockedOrder->getKey()]);
+
+                    continue;
+                }
+
+                // Redelivered fulfillment events must not double-count usage.
+                if (in_array((string) $promotionId, $countedPromotionIds, true)) {
+                    continue;
+                }
+
+                $promotion = Promotion::query()
+                    ->forOwner($owner, false)
+                    ->find($promotionId);
+
+                if ($promotion === null) {
+                    $this->skip('promotion allocation could not be resolved in the order owner scope', [
+                        'order_id' => $lockedOrder->getKey(),
+                        'promotion_id' => $promotionId,
+                    ]);
+
+                    continue;
+                }
+
+                $incremented = OwnerContext::withOwner($owner, static fn (): bool => $promotion->tryIncrementUsage());
+
+                if (! $incremented) {
+                    $this->skip('promotion usage limit was reached during atomic increment', [
+                        'order_id' => $lockedOrder->getKey(),
+                        'promotion_id' => $promotionId,
+                    ]);
+
+                    continue;
+                }
+
+                $countedPromotionIds[] = (string) $promotionId;
             }
 
-            // Redelivered OrderPaid events must not double-count usage.
-            if (in_array((string) $promotionId, $countedPromotionIds, true)) {
-                continue;
-            }
-
-            $promotion = Promotion::query()
-                ->forOwner($owner, false)
-                ->find($promotionId);
-
-            if ($promotion === null) {
-                $this->skip('promotion allocation could not be resolved in the order owner scope', [
-                    'order_id' => $order->getKey(),
-                    'promotion_id' => $promotionId,
-                ]);
-
-                continue;
-            }
-
-            $incremented = OwnerContext::withOwner($owner, static fn (): bool => $promotion->tryIncrementUsage());
-
-            if (! $incremented) {
-                $this->skip('promotion usage limit was reached during atomic increment', [
-                    'order_id' => $order->getKey(),
-                    'promotion_id' => $promotionId,
-                ]);
-
-                continue;
-            }
-
-            $countedPromotionIds[] = (string) $promotionId;
-        }
-
-        $this->persistCountedPromotionIds($order, $owner, $countedPromotionIds);
+            $this->persistCountedPromotionIds($lockedOrder, $owner, $countedPromotionIds);
+        });
     }
 
     /**
@@ -173,16 +195,16 @@ final class MarkPromotionAsUsedOnOrderPlaced
 
         $metadata['promotions_usage_counted'] = $countedPromotionIds;
 
-        try {
-            OwnerContext::withOwner($owner, static function () use ($order, $metadata): void {
-                $order->forceFill(['metadata' => $metadata])->saveQuietly();
-            });
-        } catch (Throwable $exception) {
-            $this->skip('promotion usage stamp could not be persisted', [
-                'order_id' => $order->getKey(),
-                'reason' => $exception->getMessage(),
-            ]);
-        }
+        // Stamp failures must abort the transaction: the usage increments
+        // commit together with the stamp, or a relay retry would count
+        // them again.
+        OwnerContext::withOwner($owner, static function () use ($order, $metadata): void {
+            $saved = $order->forceFill(['metadata' => $metadata])->saveQuietly();
+
+            if ($saved === false) {
+                throw new RuntimeException(sprintf('Promotion usage stamp could not be persisted for order [%s].', (string) $order->getKey()));
+            }
+        });
     }
 
     private function resolveSessionId(mixed $order): ?string
