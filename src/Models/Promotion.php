@@ -253,6 +253,28 @@ class Promotion extends Model implements Auditable
     }
 
     /**
+     * Scope to promotions an operator still considers running: enabled and not
+     * past their end date.
+     *
+     * This is deliberately narrower than the canonical `activeAt()` scope, which
+     * also enforces the usage limit. A promotion at its usage cap is still a
+     * running promotion for dashboard and reporting purposes, so counting it as
+     * inactive would understate the operator's intent.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeCurrentlyActive(Builder $query, ?CarbonImmutable $now = null): Builder
+    {
+        $now ??= CarbonImmutable::now();
+
+        return $query->where('is_active', true)
+            ->where(function (Builder $q) use ($now): void {
+                $q->whereNull('ends_at')->orWhere('ends_at', '>=', $now);
+            });
+    }
+
+    /**
      * Scope to promotions active at a supplied instant.
      *
      * This is the canonical activity scope; the wall-clock `active()`
@@ -332,6 +354,25 @@ class Promotion extends Model implements Auditable
     public function isActive(): bool
     {
         return $this->isActiveAt(CarbonImmutable::now());
+    }
+
+    /**
+     * Whether an operator would still call this promotion running: the stored
+     * flag is on and the end date has not passed. Unlike `isActive()` this
+     * ignores the usage limit, which is a redemption constraint rather than
+     * part of the promotion's lifecycle. Mirrors `scopeCurrentlyActive()`.
+     *
+     * Exposed as an accessor so Filament columns can read it as
+     * `is_currently_active`; Eloquent will not resolve a bare method through
+     * `data_get`.
+     */
+    public function getIsCurrentlyActiveAttribute(): bool
+    {
+        if (! $this->is_active) {
+            return false;
+        }
+
+        return $this->ends_at === null || $this->ends_at >= CarbonImmutable::now();
     }
 
     public function isActiveAt(CarbonImmutable $now): bool

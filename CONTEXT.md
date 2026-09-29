@@ -42,7 +42,7 @@ keywords:
 ## Key surfaces
 - Models: `Promotion`
 - Actions/Services: `Actions/CreatePromotion`, `Actions/DeactivatePromotion`, `Actions/IssueVouchersFromPromotion`, `Services/PromotionService`, `Support/PromotionPerformanceInsights`
-- Config `promotions.php`: `database`, `json_column_type`, `tables`, `promotions`, `promotionables`, `defaults`, `currency`, `features`, `owner`, `enabled`
+- Config `promotions.php`: `database` (→ `json_column_type`, `tables.promotions`, `tables.promotionables`), `defaults` (→ `currency`), `features` (→ `owner.enabled`, `owner.include_global`, `owner.auto_assign_on_create`)
 
 ## Docs map
 - Start: `01-overview` → `03-configuration` → `04-usage` → `99-troubleshooting`
