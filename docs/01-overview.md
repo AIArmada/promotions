@@ -89,7 +89,7 @@ The `aiarmada/promotions` package owns automatic and code-based discount campaig
 
 ## Requirements
 
-- PHP 8.4+
+- PHP 8.5+
 - Laravel 13+
 - `aiarmada/commerce-support`
 - `spatie/laravel-activitylog`

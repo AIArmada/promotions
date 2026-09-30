@@ -9,7 +9,7 @@
     }
   ],
   "require": {
-    "php": "^8.4",
+    "php": "^8.5",
     "aiarmada/commerce-support": "self.version",
     "illuminate/database": "^13.31.0",
     "illuminate/support": "^13.31.0",
