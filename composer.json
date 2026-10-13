@@ -14,7 +14,8 @@
     "illuminate/database": "^13.31.0",
     "illuminate/support": "^13.31.0",
     "spatie/laravel-activitylog": "^5.1.1",
-    "spatie/laravel-data": "^4.23.0"
+    "spatie/laravel-data": "^4.23.0",
+    "spatie/laravel-package-tools": "^1.93.2"
   },
   "suggest": {
     "aiarmada/cart": "Optional integration",

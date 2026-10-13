@@ -10,25 +10,28 @@ use AIArmada\Promotions\Listeners\MarkPromotionAsUsedOnFulfillment;
 use AIArmada\Promotions\Services\PromotionService;
 use AIArmada\Promotions\Support\IssuedVoucherTrackingState;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\ServiceProvider;
+use Spatie\LaravelPackageTools\Package;
+use Spatie\LaravelPackageTools\PackageServiceProvider;
 
-class PromotionsServiceProvider extends ServiceProvider
+class PromotionsServiceProvider extends PackageServiceProvider
 {
-    public function register(): void
+    public function configurePackage(Package $package): void
     {
-        $this->mergeConfigFrom(__DIR__ . '/../config/promotions.php', 'promotions');
+        $package
+            ->name('promotions')
+            ->hasConfigFile()
+            ->runsMigrations()
+            ->discoversMigrations();
+    }
 
+    public function packageRegistered(): void
+    {
         $this->app->singleton(PromotionServiceInterface::class, PromotionService::class);
         $this->app->scoped(IssuedVoucherTrackingState::class);
     }
 
-    public function boot(): void
+    public function packageBooted(): void
     {
-        if ($this->app->runningInConsole()) {
-            $this->publishConfig();
-            $this->publishMigrations();
-        }
-
         $this->registerEventListeners();
     }
 
@@ -37,21 +40,5 @@ class PromotionsServiceProvider extends ServiceProvider
         if (class_exists(OrderFulfillmentRequired::class)) {
             Event::listen(OrderFulfillmentRequired::class, MarkPromotionAsUsedOnFulfillment::class);
         }
-    }
-
-    private function publishConfig(): void
-    {
-        $this->publishes([
-            __DIR__ . '/../config/promotions.php' => config_path('promotions.php'),
-        ], 'promotions-config');
-    }
-
-    private function publishMigrations(): void
-    {
-        $this->publishes([
-            __DIR__ . '/../database/migrations/' => database_path('migrations'),
-        ], 'promotions-migrations');
-
-        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
     }
 }
