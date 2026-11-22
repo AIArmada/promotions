@@ -14,7 +14,7 @@ return new class extends Migration
 
         Schema::create((string) config('promotions.database.tables.promotions', 'promotions'), function (Blueprint $table) use ($jsonColumnType): void {
             $table->uuid('id')->primary();
-            $table->nullableMorphs('owner');
+            $table->nullableUuidMorphs('owner');
             $table->string('name');
             $table->string('code')->nullable();
             $table->text('description')->nullable();
